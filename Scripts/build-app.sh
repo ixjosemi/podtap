@@ -57,10 +57,34 @@ cp "Resources/AppIcon.icns" "$contents/Resources/AppIcon.icns"
 sed -e "s/__VERSION__/$VERSION/" -e "s/__BUILD__/$BUILD/" \
 	Resources/Info.plist >"$contents/Info.plist"
 
-# Ad-hoc signature. No substitute for notarisation, but without any signature
-# macOS will not reliably grant Accessibility.
-echo "==> Signing (ad-hoc)"
-codesign --force --deep --sign - "$app"
+# Signing identity decides whether permissions survive a rebuild.
+#
+# An ad-hoc signature produces a designated requirement pinned to the binary's
+# cdhash, which changes every build — so macOS treats each rebuild as a
+# different app and silently drops its Accessibility and Input Monitoring
+# grants. Signing with a real certificate pins the requirement to the bundle
+# identifier and the certificate instead, and the grants persist.
+#
+# Set PODTAP_SIGNING_IDENTITY to choose explicitly. Otherwise a single
+# available identity is used automatically; CI has none and falls back to
+# ad-hoc, which is correct there.
+identity="${PODTAP_SIGNING_IDENTITY:-}"
+
+if [[ -z "$identity" ]]; then
+	available="$(security find-identity -v -p codesigning 2>/dev/null |
+		sed -n 's/^ *[0-9]*) [0-9A-F]* "\(.*\)"$/\1/p')"
+	if [[ "$(printf '%s' "$available" | grep -c .)" == "1" ]]; then
+		identity="$available"
+	fi
+fi
+
+if [[ -n "$identity" ]]; then
+	echo "==> Signing as: $identity"
+	codesign --force --sign "$identity" "$app"
+else
+	echo "==> Signing (ad-hoc — permissions will reset on every rebuild)"
+	codesign --force --sign - "$app"
+fi
 
 echo
 echo "Done: $app"

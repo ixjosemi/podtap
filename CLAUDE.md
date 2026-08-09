@@ -127,12 +127,39 @@ Release builds set `UNIVERSAL=1` so the binary carries both arm64 and x86_64.
 CI runners are Apple Silicon, and an arm64-only build simply would not launch on
 an Intel Mac.
 
+### Signing identity
+
+`build-app.sh` signs with a real certificate when one is available, and falls
+back to ad-hoc otherwise. This is not cosmetic — it decides whether permissions
+survive a rebuild:
+
+```
+ad-hoc      designated => cdhash H"918bb4bc…"
+certificate designated => identifier "com.github.ixjosemi.podtap"
+                          and anchor apple generic
+                          and certificate leaf[subject.CN] = "Apple Development: …"
+```
+
+The ad-hoc requirement is pinned to the binary's content, so every rebuild
+looks like a different app to TCC. The certificate requirement is pinned to the
+bundle identifier and the certificate, and stays byte-identical across builds —
+verified by building twice with different content and diffing the requirement.
+
+Any code signing certificate works, including a free **Apple Development**
+identity created by Xcode with a plain Apple ID. No paid membership needed.
+Set `PODTAP_SIGNING_IDENTITY` to choose explicitly; a single available identity
+is picked automatically.
+
+CI has no identity and signs ad-hoc, which is correct: the private key must not
+leave the developer's keychain, and a certificate that downloaders do not trust
+would add nothing anyway.
+
 ### The TCC trap
 
-The ad-hoc signature matters: without any signature macOS will not reliably
-grant Accessibility. But TCC keys permissions on **path plus code requirement**,
-and an ad-hoc `cdhash` changes on every build. Consequences, learned the hard
-way:
+Without any signature macOS will not reliably grant Accessibility at all. And
+TCC keys permissions on **path plus code requirement**. With an ad-hoc
+signature, that requirement embeds a `cdhash` that changes on every build.
+Consequences, learned the hard way:
 
 - Rebuilding invalidates existing grants. System Settings still shows the
   checkbox ticked while `AXIsProcessTrusted()` returns `false`.

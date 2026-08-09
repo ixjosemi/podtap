@@ -172,9 +172,31 @@ at the Command Line Tools rather than Xcode:
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test
 ```
 
-Rebuilding changes the ad-hoc signature, so macOS treats the result as a new app
-and asks for both permissions again. A notarised build with a stable identity
-will fix that.
+### Keeping permissions across rebuilds
+
+By default `build-app.sh` signs ad-hoc, which produces a designated requirement
+pinned to the binary's hash. Every rebuild then looks like a different app to
+macOS, and both permissions have to be granted again.
+
+Signing with any real certificate fixes this — including a free **Apple
+Development** identity, which Xcode will create from a plain Apple ID at no
+cost. The requirement becomes pinned to the bundle identifier and the
+certificate instead of the hash, and stays identical across builds.
+
+The script picks up a single available identity automatically. To choose:
+
+```sh
+security find-identity -v -p codesigning          # list what you have
+PODTAP_SIGNING_IDENTITY="Apple Development: you@example.com (TEAMID)" \
+  ./Scripts/build-app.sh
+```
+
+If permissions still misbehave after switching, clear the stale entries once:
+
+```sh
+tccutil reset Accessibility com.github.ixjosemi.podtap
+tccutil reset ListenEvent com.github.ixjosemi.podtap
+```
 
 ## Scope
 
