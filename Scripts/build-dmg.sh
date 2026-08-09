@@ -12,10 +12,12 @@
 
 set -euo pipefail
 
-VERSION="${VERSION:-0.1.0}"
-
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
+
+# Same single source of truth as build-app.sh, so the disk image cannot be
+# named after a different version than the bundle inside it.
+VERSION="$(tr -d '[:space:]' <VERSION)"
 
 # Constant on purpose: .DS_Store records the background image by path inside
 # the volume, so a versioned volume name would break the layout every release.
@@ -27,7 +29,7 @@ output="build/PodTap-$VERSION.dmg"
 
 if [[ ! -d "$app" ]]; then
 	echo "==> $app not found, building it first"
-	VERSION="$VERSION" ./Scripts/build-app.sh
+	./Scripts/build-app.sh
 fi
 
 echo "==> Staging disk image contents"

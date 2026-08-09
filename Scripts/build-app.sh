@@ -8,11 +8,21 @@
 
 set -euo pipefail
 
-VERSION="${VERSION:-0.1.0}"
-BUILD="${BUILD:-1}"
-
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
+
+# The VERSION file is the only place the version is written down. It used to
+# default to a hardcoded 0.1.0 here, which meant every local build claimed to be
+# 0.1.0 no matter what was actually in it — only CI, passing the tag in, ever
+# produced a bundle that told the truth. Releasing is now: edit VERSION, tag it,
+# and the workflow refuses to build if the two disagree.
+VERSION="$(tr -d '[:space:]' <VERSION)"
+BUILD="${BUILD:-1}"
+
+if [[ -z "$VERSION" ]]; then
+	echo "error: VERSION is empty" >&2
+	exit 1
+fi
 
 app="build/PodTap.app"
 contents="$app/Contents"

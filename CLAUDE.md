@@ -326,7 +326,16 @@ GitHub release. It fires on a `v*` tag, on a published release, or manually. The
 publish step is idempotent because tag push and release publish can both fire
 for the same version.
 
-Cut a release with `git tag v0.2.0 && git push origin v0.2.0`.
+**The `VERSION` file at the repo root is the only place the version is written
+down.** Both build scripts read it; nothing takes it as an argument any more.
+It used to default to a hardcoded `0.1.0` in `build-app.sh`, which meant every
+locally built bundle claimed to be 0.1.0 no matter what was in it — only CI,
+passing the tag in, ever produced an honest one.
+
+Cut a release by editing `VERSION`, committing, then
+`git tag v0.3.1 && git push origin v0.3.1`. The workflow refuses to build when
+the tag and the file disagree, rather than publishing a `v0.3.1` release
+containing a bundle that calls itself something else.
 
 ## Status
 

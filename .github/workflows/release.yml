@@ -6,10 +6,6 @@ on:
   release:
     types: [published]
   workflow_dispatch:
-    inputs:
-      version:
-        description: "Version to build, without the leading v (e.g. 0.1.0)"
-        required: true
 
 # Needed to attach the disk image to the release.
 permissions:
@@ -32,12 +28,18 @@ jobs:
 
       - name: Resolve the version
         id: meta
+        # The VERSION file is the single source of truth, and a tag that
+        # disagrees with it is a mistake worth stopping for: it would publish
+        # v0.4.0 containing a bundle that calls itself 0.3.0.
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            version="${{ inputs.version }}"
-          else
-            version="${GITHUB_REF_NAME#v}"
+          version="$(tr -d '[:space:]' < VERSION)"
+
+          if [ "${{ github.event_name }}" != "workflow_dispatch" ] \
+             && [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match VERSION ($version)"
+            exit 1
           fi
+
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "tag=v$version" >> "$GITHUB_OUTPUT"
           echo "Building PodTap $version"
@@ -48,7 +50,6 @@ jobs:
 
       - name: Build the universal disk image
         env:
-          VERSION: ${{ steps.meta.outputs.version }}
           BUILD: ${{ github.run_number }}
           UNIVERSAL: "1"
         run: ./Scripts/build-dmg.sh
