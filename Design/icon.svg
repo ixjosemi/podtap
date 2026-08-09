@@ -1,106 +1,85 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
   <title>PodTap</title>
+  <!-- The EarPods inline remote, straight on and cropped so it fills the tile at
+       its real proportions. Volume up and down sit where Apple prints them; the
+       unmarked middle is lit, because that is the one button the app takes over
+       and the only thing separating this icon from a picture of a cable.
+
+       Drawn to survive being small. PodTap sets LSUIElement and never appears in
+       the Dock, so the icon's real homes are the Finder, Spotlight and the
+       System Settings privacy lists — 32px and under. A white bar with a blue
+       centre is what is left at 16px, and it is still legible. Earlier attempts
+       shot the same object on grey, or laid it on the diagonal; both looked
+       better at 512px and dissolved at 16. -->
   <defs>
-    <linearGradient id="backdrop" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#4F46E5"/>
-      <stop offset="45%" stop-color="#7C3AED"/>
-      <stop offset="100%" stop-color="#DB2777"/>
+    <linearGradient id="ground" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0%" stop-color="#3B4046"/>
+      <stop offset="100%" stop-color="#1A1D20"/>
     </linearGradient>
 
-    <radialGradient id="warmBlob" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#FB7185" stop-opacity="0.95"/>
-      <stop offset="100%" stop-color="#FB7185" stop-opacity="0"/>
+    <linearGradient id="shell" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#C8C4BB"/>
+      <stop offset="12%" stop-color="#F4F2EC"/>
+      <stop offset="42%" stop-color="#FFFFFF"/>
+      <stop offset="78%" stop-color="#EFECE5"/>
+      <stop offset="100%" stop-color="#BAB6AD"/>
+    </linearGradient>
+
+    <linearGradient id="cord" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#A9A69F"/>
+      <stop offset="30%" stop-color="#F0EEE8"/>
+      <stop offset="70%" stop-color="#E6E3DC"/>
+      <stop offset="100%" stop-color="#A29F98"/>
+    </linearGradient>
+
+    <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.08"/>
+    </linearGradient>
+
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#3E8BFF" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#3E8BFF" stop-opacity="0"/>
     </radialGradient>
 
-    <radialGradient id="coolBlob" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#22D3EE" stop-opacity="0.9"/>
-      <stop offset="100%" stop-color="#22D3EE" stop-opacity="0"/>
-    </radialGradient>
-
-    <!-- La lámina de cristal: más opaca arriba, donde recibiría la luz. -->
-    <linearGradient id="glassFace" x1="0.1" y1="0" x2="0.9" y2="1">
-      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.55"/>
-      <stop offset="55%" stop-color="#FFFFFF" stop-opacity="0.22"/>
-      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.10"/>
-    </linearGradient>
-
-    <linearGradient id="glassEdge" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.9"/>
-      <stop offset="50%" stop-color="#FFFFFF" stop-opacity="0.25"/>
-      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.6"/>
-    </linearGradient>
-
-    <linearGradient id="budBody" x1="0.2" y1="0" x2="0.8" y2="1">
-      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.98"/>
-      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.82"/>
-    </linearGradient>
-
-    <filter id="softBlur" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="70"/>
+    <filter id="cast" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="24" stdDeviation="28" flood-color="#05070A" flood-opacity="0.55"/>
     </filter>
 
-    <filter id="dropShadow" x="-30%" y="-30%" width="160%" height="160%">
-      <feDropShadow dx="0" dy="16" stdDeviation="26" flood-color="#1E1B4B" flood-opacity="0.35"/>
+    <filter id="tileShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="14" stdDeviation="20" flood-color="#000000" flood-opacity="0.32"/>
     </filter>
 
-    <clipPath id="squircle">
-      <rect x="0" y="0" width="1024" height="1024" rx="229" ry="229"/>
+    <clipPath id="tile">
+      <rect x="100" y="84" width="824" height="824" rx="184" ry="184"/>
     </clipPath>
   </defs>
 
-  <g clip-path="url(#squircle)">
-    <rect width="1024" height="1024" fill="url(#backdrop)"/>
+  <rect x="100" y="84" width="824" height="824" rx="184" ry="184"
+        fill="#1A1D20" filter="url(#tileShadow)"/>
 
-    <!-- Manchas de color desenfocadas: dan al cristal algo que refractar. -->
-    <circle cx="200" cy="180" r="330" fill="url(#coolBlob)" filter="url(#softBlur)"/>
-    <circle cx="880" cy="820" r="360" fill="url(#warmBlob)" filter="url(#softBlur)"/>
-    <circle cx="820" cy="150" r="200" fill="#FDE68A" opacity="0.45" filter="url(#softBlur)"/>
+  <g clip-path="url(#tile)">
+    <rect x="100" y="84" width="824" height="824" fill="url(#ground)"/>
 
-    <!-- Lámina de cristal esmerilado, girada para dar profundidad. -->
-    <g transform="rotate(-12 512 512)" filter="url(#dropShadow)">
-      <rect x="196" y="256" width="632" height="512" rx="112" ry="112"
-            fill="url(#glassFace)" stroke="url(#glassEdge)" stroke-width="4"/>
-      <!-- Reflejo especular en el borde superior. -->
-      <path d="M 250 380 Q 300 300 400 292 L 700 292 Q 780 296 800 350"
-            fill="none" stroke="#FFFFFF" stroke-opacity="0.5" stroke-width="6"
-            stroke-linecap="round"/>
+    <rect x="492" y="84" width="40" height="824" fill="url(#cord)"/>
+
+    <g filter="url(#cast)">
+      <rect x="416" y="168" width="192" height="666" rx="96" ry="96" fill="url(#shell)"/>
     </g>
 
-    <!-- Auricular con cable. Las ondas salen del mando, que es el botón que
-         PodTap intercepta: es ahí donde ocurre el gesto. -->
-    <g transform="translate(536 528) scale(0.92)">
-      <!-- Auricular, arriba a la izquierda. -->
-      <g transform="translate(-196 -212) rotate(-20)">
-        <ellipse cx="0" cy="0" rx="116" ry="128" fill="url(#budBody)"/>
-        <ellipse cx="4" cy="-6" rx="38" ry="45" fill="#4C1D95" opacity="0.17"/>
-        <ellipse cx="-44" cy="-58" rx="30" ry="20" fill="#FFFFFF" opacity="0.75"
-                 transform="rotate(-28 -44 -58)"/>
-        <rect x="-40" y="96" width="80" height="146" rx="40" ry="40"
-              fill="url(#budBody)"/>
-      </g>
+    <rect x="416" y="168" width="192" height="666" rx="96" ry="96"
+          fill="none" stroke="#B4B0A7" stroke-width="3" stroke-opacity="0.7"/>
 
-      <!-- Cable hasta el mando. -->
-      <path d="M -168 -22 C -132 96 -60 154 -6 186"
-            fill="none" stroke="#FFFFFF" stroke-opacity="0.9"
-            stroke-width="30" stroke-linecap="round"/>
+    <rect x="456" y="204" width="40" height="590" rx="20" fill="url(#sheen)" opacity="0.5"/>
 
-      <!-- Mando del cable. -->
-      <g transform="rotate(28 24 214)">
-        <rect x="-16" y="146" width="80" height="164" rx="40" ry="40"
-              fill="#FFFFFF" opacity="0.98"/>
-        <rect x="4" y="182" width="40" height="8" rx="4"
-              fill="#4C1D95" opacity="0.28"/>
-        <rect x="4" y="266" width="40" height="8" rx="4"
-              fill="#4C1D95" opacity="0.28"/>
-      </g>
-
-      <!-- Ondas concéntricas centradas en el mando: mantener pulsado. -->
-      <g fill="none" stroke="#FFFFFF" stroke-linecap="round" stroke-width="26"
-         transform="translate(24 214)">
-        <path d="M 96 -74 A 122 122 0 0 1 96 74" stroke-opacity="0.9"/>
-        <path d="M 168 -126 A 208 208 0 0 1 168 126" stroke-opacity="0.55"/>
-        <path d="M 240 -178 A 296 296 0 0 1 240 178" stroke-opacity="0.28"/>
-      </g>
+    <g fill="#9B978D">
+      <rect x="486" y="278" width="52" height="13" rx="6.5"/>
+      <rect x="505.5" y="258.5" width="13" height="52" rx="6.5"/>
+      <rect x="486" y="712" width="52" height="13" rx="6.5"/>
     </g>
+
+    <!-- The centre button, held down. -->
+    <circle cx="512" cy="500" r="150" fill="url(#glow)"/>
+    <circle cx="512" cy="500" r="34" fill="#2F7BF0"/>
   </g>
 </svg>

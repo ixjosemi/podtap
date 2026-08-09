@@ -1,44 +1,55 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 660 420" width="660" height="420"
      font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Helvetica, Arial, sans-serif">
   <title>PodTap installer background</title>
+  <!-- Retoned to the icon's palette: warm neutral ground, graphite type, one
+       blue accent. No violet anywhere.
+
+       Deliberately still light. Finder draws the two icon labels — "PodTap" and
+       "Applications" — over this image at around y=290, in the system's own
+       label colour, which is near-black in Light Mode. A graphite background to
+       match the icon would make both of them unreadable, and the DMG is the
+       first thing anyone downloading PodTap ever sees.
+
+       Dimensions are fixed at 660x420: .DS_Store pins the icon positions to
+       this canvas, so changing the size would scatter the layout. -->
   <defs>
-    <linearGradient id="paper" x1="0" y1="0" x2="0.6" y2="1">
-      <stop offset="0%" stop-color="#FFFFFF"/>
-      <stop offset="60%" stop-color="#FAF8FF"/>
-      <stop offset="100%" stop-color="#F3EEFF"/>
+    <linearGradient id="paper" x1="0" y1="0" x2="0.5" y2="1">
+      <stop offset="0%" stop-color="#FCFBF9"/>
+      <stop offset="60%" stop-color="#F5F4F1"/>
+      <stop offset="100%" stop-color="#EBEAE6"/>
     </linearGradient>
 
-    <radialGradient id="violetWash" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#7C3AED" stop-opacity="0.20"/>
-      <stop offset="100%" stop-color="#7C3AED" stop-opacity="0"/>
-    </radialGradient>
-
-    <radialGradient id="pinkWash" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#DB2777" stop-opacity="0.16"/>
-      <stop offset="100%" stop-color="#DB2777" stop-opacity="0"/>
-    </radialGradient>
-
-    <!-- userSpaceOnUse, not the default objectBoundingBox: a horizontal line
-         has a zero-height bounding box, and the gradient silently vanishes. -->
     <linearGradient id="arrow" gradientUnits="userSpaceOnUse"
                     x1="258" y1="0" x2="402" y2="0">
-      <stop offset="0%" stop-color="#7C3AED" stop-opacity="0.25"/>
-      <stop offset="100%" stop-color="#7C3AED" stop-opacity="0.85"/>
+      <stop offset="0%" stop-color="#2F7BF0" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#2F7BF0" stop-opacity="0.9"/>
     </linearGradient>
 
-    <filter id="wash" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="60"/>
-    </filter>
+    <!-- Across the width, as on the icon: that is what makes it a cylinder. -->
+    <linearGradient id="shell" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#CFCBC2"/>
+      <stop offset="20%" stop-color="#FBFAF6"/>
+      <stop offset="55%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#C6C2B9"/>
+    </linearGradient>
   </defs>
 
   <rect width="660" height="420" fill="url(#paper)"/>
-  <circle cx="70" cy="60" r="190" fill="url(#violetWash)" filter="url(#wash)"/>
-  <circle cx="610" cy="390" r="200" fill="url(#pinkWash)" filter="url(#wash)"/>
+
+  <!-- The cable, run right down the left margin: the same object as the icon,
+       quiet enough not to compete with the two icon slots. -->
+  <g opacity="0.5">
+    <rect x="46" y="0" width="7" height="420" fill="#D6D2C9"/>
+    <rect x="33" y="150" width="33" height="104" rx="16.5" fill="url(#shell)"/>
+    <rect x="33" y="150" width="33" height="104" rx="16.5"
+          fill="none" stroke="#C3BFB6" stroke-width="1"/>
+    <circle cx="49.5" cy="202" r="6" fill="#2F7BF0"/>
+  </g>
 
   <!-- Header. Kept above the icon row, which Finder draws at y=210. -->
-  <text x="330" y="66" font-size="27" font-weight="700" fill="#1E1B4B"
+  <text x="330" y="66" font-size="27" font-weight="700" fill="#1A1D20"
         text-anchor="middle" letter-spacing="-0.5">Install PodTap</text>
-  <text x="330" y="94" font-size="15" fill="#6D28D9" text-anchor="middle">
+  <text x="330" y="94" font-size="15" fill="#5C646D" text-anchor="middle">
     Drag the app onto the Applications folder
   </text>
 
@@ -47,24 +58,24 @@
   <g transform="translate(0 206)">
     <path d="M 258 0 L 388 0" stroke="url(#arrow)" stroke-width="7"
           stroke-linecap="round" fill="none"/>
-    <path d="M 380 -13 L 402 0 L 380 13 Z" fill="#7C3AED" fill-opacity="0.85"/>
+    <path d="M 380 -13 L 402 0 L 380 13 Z" fill="#2F7BF0" fill-opacity="0.9"/>
   </g>
 
   <!-- Post-install steps. This is the only place a user reliably reads before
        running the app, so the quarantine command lives here. -->
   <g transform="translate(330 322)">
     <rect x="-268" y="-16" width="536" height="82" rx="14"
-          fill="#FFFFFF" fill-opacity="0.72" stroke="#7C3AED" stroke-opacity="0.18"/>
+          fill="#FFFFFF" fill-opacity="0.86" stroke="#1A1D20" stroke-opacity="0.12"/>
 
-    <text x="0" y="6" font-size="13" font-weight="600" fill="#3730A3"
+    <text x="0" y="6" font-size="13" font-weight="600" fill="#1A1D20"
           text-anchor="middle">After copying, run this once in Terminal:</text>
 
     <text x="0" y="30" font-size="13" font-family="ui-monospace, Menlo, monospace"
-          fill="#1E1B4B" text-anchor="middle">
+          fill="#2F7BF0" text-anchor="middle">
       xattr -dr com.apple.quarantine /Applications/PodTap.app
     </text>
 
-    <text x="0" y="53" font-size="12" fill="#6B7280" text-anchor="middle">
+    <text x="0" y="53" font-size="12" fill="#7A828A" text-anchor="middle">
       Updating? Quit PodTap first, then replace when macOS asks.
     </text>
   </g>
