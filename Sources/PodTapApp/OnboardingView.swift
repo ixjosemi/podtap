@@ -290,11 +290,16 @@ private struct PermissionCard: View {
             if granted {
                 Text("Granted").foregroundStyle(.green).fontWeight(.medium)
             } else {
-                Button("Grant…") {
-                    permission.request()
-                    permission.openSystemSettings()
+                VStack(alignment: .trailing, spacing: 4) {
+                    // Requesting and opening System Settings are separate
+                    // actions on purpose: firing both together steals focus
+                    // from the very dialog the request is raising.
+                    Button("Grant…") { permission.request() }
+                        .buttonStyle(.borderedProminent)
+                    Button("Open System Settings") { permission.openSystemSettings() }
+                        .buttonStyle(.link)
+                        .font(.caption)
                 }
-                .buttonStyle(.borderedProminent)
             }
         }
         .padding(14)

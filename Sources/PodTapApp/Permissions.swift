@@ -52,9 +52,12 @@ enum SystemPermission: CaseIterable, Identifiable {
         allCases.allSatisfy(\.isGranted)
     }
 
-    /// Triggers the system dialog. It only appears the first time; afterwards
-    /// macOS requires a trip to System Settings, which `openSystemSettings`
-    /// handles.
+    /// Triggers the system dialog, and registers the app in the relevant
+    /// System Settings list so the user only has to flip a switch rather than
+    /// hunt for the app under "+".
+    ///
+    /// Deliberately does not open System Settings: doing both at once steals
+    /// focus from the dialog this call is trying to raise.
     func request() {
         switch self {
         case .inputMonitoring:

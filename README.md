@@ -60,6 +60,22 @@ permissions and lets you pick your key. Nothing works until those permissions
 are granted, so setup asks for them up front rather than failing silently
 later.
 
+### What you can map it to
+
+| Kind | Examples |
+|---|---|
+| A plain key | `F13`, `F18` |
+| A key with modifiers | `⌘S`, `⌃⌥Space` |
+| Modifiers on their own | `⌃⇧`, `⌥⇧` |
+| Globe / Fn | `🌐` — the default trigger in several dictation apps |
+
+Modifier-only shortcuts and Globe produce no key event on macOS, only modifier
+transitions, so PodTap emits them the same way real keys do: one transition per
+modifier, released in reverse.
+
+Caps Lock is not offered. It latches rather than being held, so it cannot drive
+a press-and-hold trigger.
+
 | Permission | Why it is needed |
 |---|---|
 | **Input Monitoring** | To read the button on the EarPods remote. |

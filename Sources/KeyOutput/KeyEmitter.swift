@@ -4,14 +4,17 @@ import Foundation
 
 /// Synthesises the events PodTap must produce on the system.
 ///
-/// Two very different paths live here:
+/// Three paths live here, and they are genuinely different:
 ///
-/// - The **configurable key** uses `CGEvent`, public and stable API.
+/// - A **key with modifiers** is an ordinary `CGEvent` keyboard event.
+/// - A **modifiers-only combination** (`⌃⇧`, or Globe on its own) never
+///   produces a key event at all. It has to be emitted as a sequence of
+///   modifier transitions, one per key, exactly as a human pressing them would
+///   generate.
 /// - **Play/pause** has no public equivalent. Seizing the HID device means the
-///   original event stops existing, so it has to be rebuilt by hand with an
+///   original event stops existing, so it is rebuilt by hand with an
 ///   `NSEvent.systemDefined` carrying the magic values macOS expects. This is
-///   the project's only undocumented dependency, deliberately confined to this
-///   one file.
+///   the project's only undocumented dependency, deliberately confined here.
 public final class KeyEmitter {
     /// `NX_KEYTYPE_PLAY`, from IOKit/hidsystem/ev_keymap.h.
     private static let mediaKeyPlay: Int32 = 16
@@ -22,28 +25,85 @@ public final class KeyEmitter {
         eventSource = CGEventSource(stateID: .hidSystemState)
     }
 
-    /// Presses the configured key and leaves it held down.
+    /// Presses the configured combination and leaves it held down.
     public func pressDown(_ combination: KeyCombination) {
-        postKey(combination, keyDown: true)
+        guard !combination.isEmpty else { return }
+
+        if let keyCode = combination.keyCode {
+            // Modifiers ride along on the key event itself, which is how a real
+            // keyboard reports a shortcut like ⌘S.
+            postKey(keyCode: keyCode, flags: combination.flags, keyDown: true)
+        } else {
+            pressModifiers(combination.flags)
+        }
     }
 
-    /// Releases the configured key.
+    /// Releases the configured combination.
     public func releaseUp(_ combination: KeyCombination) {
-        postKey(combination, keyDown: false)
+        guard !combination.isEmpty else { return }
+
+        if let keyCode = combination.keyCode {
+            postKey(keyCode: keyCode, flags: combination.flags, keyDown: false)
+        } else {
+            releaseModifiers(combination.flags)
+        }
     }
 
-    private func postKey(_ combination: KeyCombination, keyDown: Bool) {
+    // MARK: - Keys
+
+    private func postKey(keyCode: UInt16, flags: CGEventFlags, keyDown: Bool) {
         guard
             let event = CGEvent(
                 keyboardEventSource: eventSource,
-                virtualKey: CGKeyCode(combination.keyCode),
+                virtualKey: CGKeyCode(keyCode),
                 keyDown: keyDown
             )
         else { return }
 
-        event.flags = combination.flags
+        event.flags = flags
         event.post(tap: .cghidEventTap)
     }
+
+    // MARK: - Modifier-only combinations
+
+    /// Presses each modifier in turn, accumulating flags as it goes, so a
+    /// listener sees the same progression a human hand would produce.
+    private func pressModifiers(_ flags: CGEventFlags) {
+        var accumulated = CGEventFlags(rawValue: 0)
+
+        for modifier in KeyCombination.modifierKeyCodes where flags.contains(modifier.flag) {
+            accumulated.insert(modifier.flag)
+            postModifierTransition(keyCode: modifier.keyCode, flags: accumulated)
+        }
+    }
+
+    /// Releases in reverse order, clearing one flag at a time, ending at zero.
+    private func releaseModifiers(_ flags: CGEventFlags) {
+        var remaining = flags
+
+        for modifier in KeyCombination.modifierKeyCodes.reversed()
+        where flags.contains(modifier.flag) {
+            remaining.remove(modifier.flag)
+            postModifierTransition(keyCode: modifier.keyCode, flags: remaining)
+        }
+    }
+
+    /// A modifier transition is a keyboard event retyped as `flagsChanged`,
+    /// carrying the key code of the modifier that moved and the resulting flag
+    /// state. Posting it as a normal key event produces nothing any app
+    /// recognises.
+    private func postModifierTransition(keyCode: CGKeyCode, flags: CGEventFlags) {
+        guard
+            let event = CGEvent(
+                keyboardEventSource: eventSource, virtualKey: keyCode, keyDown: true)
+        else { return }
+
+        event.type = .flagsChanged
+        event.flags = flags
+        event.post(tap: .cghidEventTap)
+    }
+
+    // MARK: - Play/pause
 
     /// Re-emits a full play/pause press and release to the system.
     public func tapPlayPause() {

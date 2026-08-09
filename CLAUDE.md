@@ -21,6 +21,30 @@ Do not re-investigate these. Measured on real USB-C EarPods, macOS 26.5:
 - `kIOHIDOptionsTypeSeizeDevice` is granted and **genuinely blocks**: with music
   playing, 17 presses produced no pause.
 
+## Shortcut model
+
+A `KeyCombination` is **modifiers plus an optional key**, not a key plus
+modifiers. That shape is forced by how macOS reports input:
+
+- `⌘S` arrives as a `keyDown` carrying its modifiers.
+- `⌃⇧`, `⌥⇧` and Globe/Fn produce **no key event at all** — only
+  `flagsChanged` transitions. A recorder listening solely to `keyDown` cannot
+  see them, which is exactly the bug that made Fn look unmappable.
+
+Fn is a modifier (`maskSecondaryFn`), not a key. Treating it as a key code was
+a false start.
+
+Emitting a modifier-only combination means sending **one transition per
+modifier**, accumulating flags, and releasing in reverse. Verified against a
+listening event tap:
+
+```
+hold ⌃⇧   → keyCode=59 [control] → keyCode=56 [control+shift]
+release   → keyCode=56 [control] → keyCode=59 [none]
+```
+
+Caps Lock is excluded on purpose: it latches, so it cannot be held.
+
 ## Design decisions
 
 - **Short tap re-emits play/pause, hold sends the configured key.** Play/pause

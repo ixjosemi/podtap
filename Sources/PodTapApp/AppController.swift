@@ -59,9 +59,13 @@ final class AppController: ObservableObject {
     /// Entry point at app launch. New users get the setup flow; everyone else
     /// goes straight to listening.
     func launch() {
-        if preferences.hasCompletedSetup {
-            start()
-        } else {
+        // Attempted even before setup, and even when it is bound to fail: that
+        // failed access attempt is what registers PodTap in the Input
+        // Monitoring list. Without it the user has to add the app by hand from
+        // the "+" button, which is exactly the friction setup exists to remove.
+        start()
+
+        if !preferences.hasCompletedSetup {
             showOnboarding()
         }
     }

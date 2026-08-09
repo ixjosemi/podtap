@@ -117,9 +117,10 @@ private struct PermissionRow: View {
                 Label("Granted", systemImage: "checkmark.circle.fill")
                     .foregroundStyle(.green)
             } else {
-                Button("Grant…") {
-                    permission.request()
-                    permission.openSystemSettings()
+                HStack(spacing: 8) {
+                    Button("Grant…") { permission.request() }
+                    Button("Settings") { permission.openSystemSettings() }
+                        .buttonStyle(.link)
                 }
             }
         } label: {

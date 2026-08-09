@@ -66,10 +66,13 @@ public final class EarPodsButtonMonitor {
     }
 
     public func start() throws {
-        guard Self.hasInputMonitoringAccess else {
-            throw HIDInputError.inputMonitoringDenied
-        }
         stop()
+
+        // Deliberately no early return when access is missing. macOS only adds
+        // an app to the Input Monitoring list once it has genuinely attempted
+        // device access; bailing out beforehand means the user is left hunting
+        // for PodTap under the "+" button because the system never heard of it.
+        Self.requestInputMonitoringAccess()
 
         let manager = IOHIDManagerCreate(kCFAllocatorDefault, IOOptionBits(kIOHIDOptionsTypeNone))
 
@@ -100,7 +103,11 @@ public final class EarPodsButtonMonitor {
             IOHIDManagerUnscheduleFromRunLoop(
                 manager, CFRunLoopGetMain(), CFRunLoopMode.defaultMode.rawValue
             )
-            throw HIDInputError.seizeFailed(result)
+            // Missing permission is by far the likeliest cause, and it needs a
+            // different message from a genuine device failure.
+            throw Self.hasInputMonitoringAccess
+                ? HIDInputError.seizeFailed(result)
+                : HIDInputError.inputMonitoringDenied
         }
 
         self.manager = manager
