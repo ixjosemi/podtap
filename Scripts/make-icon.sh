@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
 #
-# Renders Design/icon.svg into the AppIcon.icns that the bundle ships.
+# Renders Design/icon.svg into Resources/AppIcon.icns.
 #
 # There is no SVG rasteriser in a stock macOS install, but QuickLook renders
 # SVG through WebKit, which is enough to get a clean 1024px master. Everything
 # else is sips downscaling and iconutil packing.
+#
+# The resulting .icns is committed to the repository on purpose: qlmanage needs
+# a window server session, which CI runners cannot be relied on to provide.
+# Run this by hand whenever the SVG changes, and commit the result.
 
 set -euo pipefail
 
@@ -14,7 +18,7 @@ cd "$repo_root"
 source_svg="Design/icon.svg"
 staging="build/icon-staging"
 iconset="build/AppIcon.iconset"
-output="build/AppIcon.icns"
+output="Resources/AppIcon.icns"
 
 rm -rf "$staging" "$iconset"
 mkdir -p "$staging" "$iconset"
@@ -40,4 +44,4 @@ echo "==> Packing $output"
 iconutil --convert icns --output "$output" "$iconset"
 rm -rf "$staging" "$iconset"
 
-echo "Done: $output"
+echo "Done: $output (commit it)"

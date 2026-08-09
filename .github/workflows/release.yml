@@ -1,0 +1,108 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to build, without the leading v (e.g. 0.1.0)"
+        required: true
+
+# Needed to attach the disk image to the release.
+permissions:
+  contents: write
+
+jobs:
+  dmg:
+    name: Build and attach the DMG
+    runs-on: macos-15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select the newest Xcode
+        run: |
+          latest="$(ls -d /Applications/Xcode*.app | sort -V | tail -1)"
+          echo "Using $latest"
+          sudo xcode-select -s "$latest"
+          swift --version
+
+      - name: Resolve the version
+        id: meta
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            version="${{ inputs.version }}"
+          else
+            version="${GITHUB_REF_NAME#v}"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+          echo "Building PodTap $version"
+
+      - name: Run tests
+        # A release that fails its own test suite should never be published.
+        run: swift test
+
+      - name: Build the universal disk image
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+          BUILD: ${{ github.run_number }}
+          UNIVERSAL: "1"
+        run: ./Scripts/build-dmg.sh
+
+      - name: Verify the binary is universal
+        run: |
+          lipo -info build/PodTap.app/Contents/MacOS/PodTap | grep -q x86_64
+          lipo -info build/PodTap.app/Contents/MacOS/PodTap | grep -q arm64
+
+      - name: Attach the disk image to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.meta.outputs.tag }}
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          dmg="build/PodTap-$VERSION.dmg"
+          checksum="$(shasum -a 256 "$dmg" | awk '{print $1}')"
+
+          cat > /tmp/release-notes.md <<EOF
+          ## Install
+
+          1. Download \`PodTap-$VERSION.dmg\` below and drag PodTap to Applications.
+          2. PodTap is **not notarised**, so macOS quarantines it. Clear that once:
+
+             \`\`\`sh
+             xattr -dr com.apple.quarantine /Applications/PodTap.app
+             \`\`\`
+
+             Without this, macOS may refuse to open it or claim it is damaged.
+          3. Open PodTap from Finder. A setup window walks you through the two
+             permissions it needs and lets you pick your key.
+
+          ## What it does
+
+          - **Short tap** on the EarPods remote button: play/pause, unchanged.
+          - **Press and hold**: holds the key you chose, releases it when you let go.
+
+          Wired USB-C EarPods only. Universal binary (Apple Silicon and Intel).
+
+          ## Checksum
+
+          \`\`\`
+          SHA-256  $checksum
+          \`\`\`
+          EOF
+
+          # Idempotent on purpose: pushing a tag and publishing a release can
+          # both fire this workflow, and the second run must not fail.
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG exists, uploading the disk image"
+            gh release upload "$TAG" "$dmg" --clobber
+          else
+            echo "Creating release $TAG"
+            gh release create "$TAG" "$dmg" \
+              --title "PodTap $VERSION" \
+              --notes-file /tmp/release-notes.md
+          fi

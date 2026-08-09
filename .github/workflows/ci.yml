@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test and package
+    runs-on: macos-15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select the newest Xcode
+        # The Command Line Tools ship no XCTest, and the package needs Swift 6
+        # tooling. Picking the highest installed Xcode avoids pinning a version
+        # that the runner image may drop later.
+        run: |
+          latest="$(ls -d /Applications/Xcode*.app | sort -V | tail -1)"
+          echo "Using $latest"
+          sudo xcode-select -s "$latest"
+          swift --version
+
+      - name: Run tests
+        run: swift test
+
+      - name: Build the disk image
+        # Packaging runs on every commit, not just on tags: a release should
+        # never be the first time the DMG pipeline gets exercised.
+        env:
+          UNIVERSAL: "1"
+          BUILD: ${{ github.run_number }}
+        run: ./Scripts/build-dmg.sh
+
+      - name: Verify the binary is universal
+        run: |
+          lipo -info build/PodTap.app/Contents/MacOS/PodTap
+          lipo -info build/PodTap.app/Contents/MacOS/PodTap | grep -q x86_64
+          lipo -info build/PodTap.app/Contents/MacOS/PodTap | grep -q arm64
+
+      - name: Upload the disk image as a build artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PodTap-dmg
+          path: build/*.dmg
+          if-no-files-found: error

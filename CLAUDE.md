@@ -72,10 +72,48 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test
 - `Scripts/build-app.sh` assembles the `.app` that SwiftPM cannot produce.
 - `Scripts/build-dmg.sh` produces the drag-to-install disk image.
 
+`Resources/AppIcon.icns` is a **committed artefact**, not a build output.
+Rendering it needs `qlmanage`, which needs a window server session that CI
+runners cannot be relied on to have. Re-run `make-icon.sh` and commit the result
+whenever the SVG changes.
+
+Release builds set `UNIVERSAL=1` so the binary carries both arm64 and x86_64.
+CI runners are Apple Silicon, and an arm64-only build simply would not launch on
+an Intel Mac.
+
+### The TCC trap
+
 The ad-hoc signature matters: without any signature macOS will not reliably
-grant Accessibility. But its `cdhash` changes on every build, so **permissions
-must be re-granted after each rebuild**. Notarisation with a stable identity
-will fix this.
+grant Accessibility. But TCC keys permissions on **path plus code requirement**,
+and an ad-hoc `cdhash` changes on every build. Consequences, learned the hard
+way:
+
+- Rebuilding invalidates existing grants. System Settings still shows the
+  checkbox ticked while `AXIsProcessTrusted()` returns `false`.
+- Two copies of the app on disk are two distinct identities. Keep exactly one,
+  in `/Applications`.
+- Launching the binary from a shell makes the **terminal** the responsible
+  process, so the grant is recorded against the wrong app. Always launch from
+  Finder when testing permissions.
+- Recovery: `tccutil reset Accessibility com.github.ixjosemi.podtap` and
+  `tccutil reset ListenEvent com.github.ixjosemi.podtap`, then re-grant. The
+  number of times it prints "Successfully reset" is the number of stale
+  identities that had accumulated.
+
+A stable signing identity (self-signed certificate, or Developer ID) is the real
+fix, since the requirement would pin to the certificate rather than the hash.
+
+## Releases
+
+`.github/workflows/ci.yml` runs the tests and builds the DMG on every commit, so
+a release is never the first time the packaging path is exercised.
+
+`.github/workflows/release.yml` builds the universal DMG and attaches it to the
+GitHub release. It fires on a `v*` tag, on a published release, or manually. The
+publish step is idempotent because tag push and release publish can both fire
+for the same version.
+
+Cut a release with `git tag v0.2.0 && git push origin v0.2.0`.
 
 ## Status
 

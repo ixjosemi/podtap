@@ -40,16 +40,25 @@ key.
 
 ## Install
 
-Download the `.dmg` from [Releases](https://github.com/ixjosemi/podtap/releases)
-and drag PodTap to Applications.
+Download the latest `.dmg` from
+[Releases](https://github.com/ixjosemi/podtap/releases) and drag PodTap to
+Applications. Every release is built by GitHub Actions from a tagged commit, as
+a universal binary that runs on both Apple Silicon and Intel.
 
-Because the app is not notarised yet, the first launch needs **right-click →
-Open** instead of a double-click.
+PodTap is **not notarised** — that needs a paid Apple Developer account — so
+macOS quarantines it on download. Clear that once:
 
-On first run, PodTap opens a short setup window that walks you through the two
-required permissions and lets you pick your key. Nothing works until those
-permissions are granted, so setup asks for them up front rather than failing
-silently later.
+```sh
+xattr -dr com.apple.quarantine /Applications/PodTap.app
+```
+
+Skipping this step is the usual cause of macOS refusing to open the app, or
+claiming it is damaged.
+
+Then open PodTap from Finder. A setup window walks you through the two required
+permissions and lets you pick your key. Nothing works until those permissions
+are granted, so setup asks for them up front rather than failing silently
+later.
 
 | Permission | Why it is needed |
 |---|---|

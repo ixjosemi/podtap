@@ -24,17 +24,35 @@ if [[ -d /Applications/Xcode.app ]] && [[ "$(xcode-select -p)" != *Xcode* ]]; th
 fi
 
 echo "==> Building release binary"
-swift build -c release --product PodTap
+if [[ "${UNIVERSAL:-0}" == "1" ]]; then
+	# Release builds ship universal: CI runners are Apple Silicon, and an
+	# arm64-only binary would simply not launch on an Intel Mac.
+	swift build -c release --product PodTap --arch arm64 --arch x86_64
+	binary=".build/apple/Products/Release/PodTap"
+else
+	swift build -c release --product PodTap
+	binary=".build/release/PodTap"
+fi
 
-echo "==> Rendering app icon"
-./Scripts/make-icon.sh >/dev/null
+if [[ ! -f "$binary" ]]; then
+	echo "error: expected the built binary at $binary but it is not there" >&2
+	exit 1
+fi
+
+# The icon is a committed artefact: rendering it needs qlmanage, which needs a
+# window server session that CI runners cannot be relied on to have. Only
+# regenerate when it is genuinely missing.
+if [[ ! -f Resources/AppIcon.icns ]]; then
+	echo "==> Icon missing, rendering it"
+	./Scripts/make-icon.sh >/dev/null
+fi
 
 echo "==> Assembling $app"
 rm -rf "$app"
 mkdir -p "$contents/MacOS" "$contents/Resources"
 
-cp ".build/release/PodTap" "$contents/MacOS/PodTap"
-cp "build/AppIcon.icns" "$contents/Resources/AppIcon.icns"
+cp "$binary" "$contents/MacOS/PodTap"
+cp "Resources/AppIcon.icns" "$contents/Resources/AppIcon.icns"
 
 sed -e "s/__VERSION__/$VERSION/" -e "s/__BUILD__/$BUILD/" \
 	Resources/Info.plist >"$contents/Info.plist"
