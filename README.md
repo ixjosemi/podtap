@@ -178,7 +178,7 @@ By default `build-app.sh` signs ad-hoc, which produces a designated requirement
 pinned to the binary's hash. Every rebuild then looks like a different app to
 macOS, and both permissions have to be granted again.
 
-Signing with any real certificate fixes this — including a free **Apple
+Signing with any valid certificate fixes this — including a free **Apple
 Development** identity, which Xcode will create from a plain Apple ID at no
 cost. The requirement becomes pinned to the bundle identifier and the
 certificate instead of the hash, and stays identical across builds.
@@ -190,6 +190,13 @@ security find-identity -v -p codesigning          # list what you have
 PODTAP_SIGNING_IDENTITY="Apple Development: you@example.com (TEAMID)" \
   ./Scripts/build-app.sh
 ```
+
+> **Check that the certificate is not revoked.** Signing with a revoked
+> certificate makes macOS classify the app as malware and delete it — that is
+> what revocation is for. `security find-identity` still lists revoked
+> certificates as valid, because revocation is only checked online at
+> assessment time. `build-app.sh` verifies with `spctl` after signing and falls
+> back to ad-hoc rather than shipping something the system will quarantine.
 
 If permissions still misbehave after switching, clear the stale entries once:
 

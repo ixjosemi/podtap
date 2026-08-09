@@ -78,12 +78,29 @@ if [[ -z "$identity" ]]; then
 	fi
 fi
 
+sign_ad_hoc() {
+	echo "==> Signing (ad-hoc — permissions reset on every rebuild)"
+	codesign --force --sign - "$app"
+}
+
 if [[ -n "$identity" ]]; then
 	echo "==> Signing as: $identity"
 	codesign --force --sign "$identity" "$app"
+
+	# A revoked certificate is far worse than no certificate: macOS treats
+	# anything signed with one as malware, and XProtect deletes it outright.
+	# Revocation is checked online at assessment time, so a revoked identity
+	# still shows up as "valid" in `security find-identity` — the keychain
+	# genuinely does not know. This is the only reliable check.
+	assessment="$(spctl --assess --type execute -vvv "$app" 2>&1 || true)"
+	if grep -q "CERT_REVOKED" <<<"$assessment"; then
+		echo "    warning: that certificate is REVOKED. Falling back to ad-hoc." >&2
+		echo "    Create a fresh one in Xcode > Settings > Accounts >" >&2
+		echo "    Manage Certificates, or unset PODTAP_SIGNING_IDENTITY." >&2
+		sign_ad_hoc
+	fi
 else
-	echo "==> Signing (ad-hoc — permissions will reset on every rebuild)"
-	codesign --force --sign - "$app"
+	sign_ad_hoc
 fi
 
 echo

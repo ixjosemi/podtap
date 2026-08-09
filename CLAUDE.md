@@ -145,10 +145,28 @@ looks like a different app to TCC. The certificate requirement is pinned to the
 bundle identifier and the certificate, and stays byte-identical across builds —
 verified by building twice with different content and diffing the requirement.
 
-Any code signing certificate works, including a free **Apple Development**
-identity created by Xcode with a plain Apple ID. No paid membership needed.
-Set `PODTAP_SIGNING_IDENTITY` to choose explicitly; a single available identity
-is picked automatically.
+Any **valid** code signing certificate works, including a free **Apple
+Development** identity created by Xcode with a plain Apple ID. No paid
+membership needed. Set `PODTAP_SIGNING_IDENTITY` to choose explicitly; a single
+available identity is picked automatically.
+
+#### A revoked certificate is worse than none
+
+Signing with a revoked certificate makes macOS classify the app as **malware**:
+XProtect blocks it and deletes it, because revocation is exactly how Apple
+kills known-bad software. This happened during development and cost an install.
+
+The trap is that `security find-identity -v -p codesigning` lists a revoked
+certificate as valid. Revocation is checked online at assessment time, so the
+keychain genuinely does not know. The only reliable test is:
+
+```sh
+spctl --assess --type execute -vvv build/PodTap.app   # CSSMERR_TP_CERT_REVOKED
+syspolicy_check distribution build/PodTap.app         # spells it out in English
+```
+
+`build-app.sh` runs that check after signing and falls back to ad-hoc if the
+certificate turns out to be revoked. Never remove that guard.
 
 CI has no identity and signs ad-hoc, which is correct: the private key must not
 leave the developer's keychain, and a certificate that downloaders do not trust
