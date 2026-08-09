@@ -37,18 +37,24 @@
     <circle cx="140" cy="90" r="300" fill="url(#haloCool)" filter="url(#wide)"/>
     <circle cx="1180" cy="470" r="320" fill="url(#haloWarm)" filter="url(#wide)"/>
 
-    <!-- Wordmark and tagline -->
-    <g transform="translate(88 150)">
-      <text x="0" y="0" font-size="86" font-weight="700" fill="#FFFFFF"
+    <!-- Wordmark and tagline.
+         SVG text does not wrap, so every line is an explicit tspan. The column
+         is kept under ~540px wide so it never reaches the panel at x=690. -->
+    <g transform="translate(88 170)">
+      <text x="0" y="0" font-size="82" font-weight="700" fill="#FFFFFF"
             letter-spacing="-2">PodTap</text>
-      <text x="0" y="58" font-size="27" font-weight="500" fill="#E9D5FF">
-        Turn the EarPods remote button into any macOS key.
-      </text>
-      <text x="0" y="102" font-size="21" fill="#C4B5FD">
-        Push-to-talk from your headphone cable — without losing play/pause.
+
+      <text x="0" y="56" font-size="26" font-weight="500" fill="#E9D5FF">
+        <tspan x="0">Turn the EarPods remote button</tspan>
+        <tspan x="0" dy="34">into any macOS key.</tspan>
       </text>
 
-      <g transform="translate(0 150)">
+      <text x="0" y="146" font-size="19" fill="#C4B5FD">
+        <tspan x="0">Push-to-talk from your headphone</tspan>
+        <tspan x="0" dy="27">cable — without losing play/pause.</tspan>
+      </text>
+
+      <g transform="translate(0 208)">
         <rect x="0" y="0" width="196" height="40" rx="20" fill="#FFFFFF" fill-opacity="0.14"
               stroke="#FFFFFF" stroke-opacity="0.28"/>
         <text x="98" y="26" font-size="17" font-weight="600" fill="#F5F3FF"
