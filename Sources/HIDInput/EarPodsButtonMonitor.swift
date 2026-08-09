@@ -45,6 +45,18 @@ public final class EarPodsButtonMonitor {
 
     public private(set) var isConnected = false
 
+    /// True while the EarPods are open and seized.
+    ///
+    /// This is the only trustworthy evidence that Input Monitoring is actually
+    /// working. `IOHIDCheckAccess` answers from a cache filled once per
+    /// process, so an app that was already running when the user ticked the box
+    /// keeps reporting denial forever — while the very next `IOHIDManagerOpen`
+    /// succeeds. Verified on a live install: PodTap held the device exclusively
+    /// and still showed the permission as missing.
+    public var isReadingDevice: Bool {
+        manager != nil && isConnected
+    }
+
     private var manager: IOHIDManager?
 
     public init() {}

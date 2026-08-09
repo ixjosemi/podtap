@@ -34,6 +34,41 @@ modifiers. That shape is forced by how macOS reports input:
 Fn is a modifier (`maskSecondaryFn`), not a key. Treating it as a key code was
 a false start.
 
+### Fn never reaches an application
+
+Recording has to happen in a `CGEventTap` at `.cghidEventTap`. An `NSEvent`
+monitor cannot see the Globe key at all. Measured with listen-only taps at all
+three locations simultaneously, posting one synthetic Fn transition:
+
+```
+Fn       → HID ✓   SESSION ✓   ANNOTATED ✗
+Control  → HID ✓   SESSION ✓   ANNOTATED ✓
+```
+
+`.cgAnnotatedSessionEventTap` is the last stop before application delivery, so
+anything invisible there is invisible to `NSEvent`. Something between the
+session tap and the app absorbs Fn specifically. That, not the shortcut model,
+is why Globe looked unmappable through two separate fixes.
+
+The recorder tap **consumes** what it captures, so recording ⌘Q does not quit
+PodTap and recording Globe does not fire the dictation app being mapped.
+Verified: 6 posted transitions, 6 seen by the tap, 0 escaping downstream.
+
+Modifiers are released **one at a time**, so the last non-zero report is a
+subset of what was held — `⌘⇧` reports `⌘` on the way down to nothing. The
+recorder accumulates the union of everything seen during the press. Trusting
+the latest report saved `⌘⇧` as `⌘`.
+
+The Fn flag is stripped from key combinations. macOS sets it by itself on
+arrow, page and function keys, so `←` is indistinguishable from `🌐←`. Globe
+alone is unaffected: it is a modifier-only combination.
+
+### Wispr Flow responds to the synthesised Globe
+
+Observed while probing: a synthetic Fn down/up pair made Wispr Flow run its
+dictation cycle and paste, which showed up on the taps as an unsolicited `⌘V`.
+The output path is confirmed against a real consumer.
+
 Emitting a modifier-only combination means sending **one transition per
 modifier**, accumulating flags, and releasing in reverse. Verified against a
 listening event tap:
@@ -189,6 +224,22 @@ CI has no identity and signs ad-hoc, which is correct: the private key must not
 leave the developer's keychain, and a certificate that downloaders do not trust
 would add nothing anyway.
 
+### `IOHIDCheckAccess` lies after a live grant
+
+It answers from a cache filled once per process. An app that was already
+running when the user ticked Input Monitoring keeps reporting denial for as
+long as it lives, while the very next `IOHIDManagerOpen` succeeds. Confirmed on
+a live install: PodTap held the EarPods exclusively — an outside probe got
+`kIOReturnExclusiveAccess` and `ioreg -c IOHIDLibUserClient` named PodTap as
+the owner — while its own interface showed the permission missing.
+
+So the interface trusts `EarPodsButtonMonitor.isReadingDevice`, meaning the
+device is open **and** present, and falls back to `IOHIDCheckAccess` only when
+there is nothing plugged in to prove it either way. A **Quit & Reopen** button
+is offered alongside, since restarting is the only thing that clears the cache.
+
+Accessibility has no such problem: `AXIsProcessTrusted()` is evaluated live.
+
 ### The TCC trap
 
 Without any signature macOS will not reliably grant Accessibility at all. And
@@ -226,7 +277,7 @@ Cut a release with `git tag v0.2.0 && git push origin v0.2.0`.
 ## Status
 
 - [x] `GestureCore`: `handle`, `tick`, `interrupt`. 13 tests.
-- [x] `KeyOutput`: `KeyCombination`, `KeyEmitter`. 5 tests.
+- [x] `KeyOutput`: `KeyCombination`, `KeyEmitter`, `ShortcutRecording`. 19 tests.
 - [x] `HIDInput`: exclusive seize of the Consumer interface, hotplug.
 - [x] `PodTapApp`: menu bar, settings, key recorder, first-run setup flow.
 - [x] Icon and README hero as SVG; `.icns`, `.app` and `.dmg` pipelines.

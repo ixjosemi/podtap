@@ -71,7 +71,12 @@ struct SettingsView: View {
 
             Section("Permissions") {
                 ForEach(SystemPermission.allCases) { permission in
-                    PermissionRow(permission: permission, refreshToken: permissionRefresh)
+                    PermissionRow(
+                        permission: permission,
+                        isGranted: permission.isGranted(
+                            isReadingDevice: controller.isReadingDevice),
+                        refreshToken: permissionRefresh
+                    )
                 }
             }
 
@@ -106,22 +111,17 @@ private struct StatusBadge: View {
 
 private struct PermissionRow: View {
     let permission: SystemPermission
+    let isGranted: Bool
     /// Exists only to force a redraw from the timer.
     let refreshToken: Date
 
     var body: some View {
-        let granted = permission.isGranted
-
         LabeledContent {
-            if granted {
+            if isGranted {
                 Label("Granted", systemImage: "checkmark.circle.fill")
                     .foregroundStyle(.green)
             } else {
-                HStack(spacing: 8) {
-                    Button("Grant…") { permission.request() }
-                    Button("Settings") { permission.openSystemSettings() }
-                        .buttonStyle(.link)
-                }
+                PermissionActions(permission: permission)
             }
         } label: {
             VStack(alignment: .leading, spacing: 2) {

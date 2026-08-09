@@ -73,13 +73,24 @@ Modifier-only shortcuts and Globe produce no key event on macOS, only modifier
 transitions, so PodTap emits them the same way real keys do: one transition per
 modifier, released in reverse.
 
+Recording them is the harder half. Globe never reaches an application's own
+event stream at all — measured with taps at all three levels, it is visible to
+the system and gone by the time it would be delivered — so PodTap captures
+shortcuts one layer below, and swallows what it captures. Pressing ⌘Q into the
+field records ⌘Q instead of quitting.
+
 Caps Lock is not offered. It latches rather than being held, so it cannot drive
 a press-and-hold trigger.
 
 | Permission | Why it is needed |
 |---|---|
 | **Input Monitoring** | To read the button on the EarPods remote. |
-| **Accessibility** | To send the key you chose to whatever app you are typing in. |
+| **Accessibility** | To send the key you chose, and to record one in the first place. |
+
+Input Monitoring only takes effect once PodTap restarts: macOS answers that
+particular question from a cache filled when the app launched. If the switch is
+already on and PodTap still says otherwise, use **Quit & Reopen** next to the
+permission.
 
 Then set the same key as the shortcut in your dictation app, and you are done.
 

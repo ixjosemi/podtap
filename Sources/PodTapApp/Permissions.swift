@@ -41,15 +41,28 @@ enum SystemPermission: CaseIterable, Identifiable {
         }
     }
 
-    var isGranted: Bool {
+    /// Whether the permission is actually in effect.
+    ///
+    /// Input Monitoring needs the extra evidence: `IOHIDCheckAccess` answers
+    /// from a per-process cache, so an app that was running when the user
+    /// ticked the box goes on reporting denial indefinitely. Successfully
+    /// reading the device settles the question in a way the API cannot.
+    func isGranted(isReadingDevice: Bool) -> Bool {
         switch self {
-        case .inputMonitoring: return EarPodsButtonMonitor.hasInputMonitoringAccess
-        case .accessibility: return AXIsProcessTrusted()
+        case .inputMonitoring:
+            return isReadingDevice || EarPodsButtonMonitor.hasInputMonitoringAccess
+        case .accessibility:
+            return AXIsProcessTrusted()
         }
     }
 
-    static var allGranted: Bool {
-        allCases.allSatisfy(\.isGranted)
+    /// True when the cached answer is the only thing standing in the way, so
+    /// the interface can offer a relaunch instead of sending the user back to
+    /// System Settings to re-tick a box that is already ticked.
+    var isResolvedByRelaunch: Bool { self == .inputMonitoring }
+
+    static func allGranted(isReadingDevice: Bool) -> Bool {
+        allCases.allSatisfy { $0.isGranted(isReadingDevice: isReadingDevice) }
     }
 
     /// Triggers the system dialog, and registers the app in the relevant
@@ -80,5 +93,34 @@ enum SystemPermission: CaseIterable, Identifiable {
                 string: "x-apple.systempreferences:com.apple.preference.security?\(anchor)")
         else { return }
         NSWorkspace.shared.open(url)
+    }
+}
+
+/// What to offer when a permission is not in effect. Shared by setup and
+/// settings so the recovery path cannot drift between the two.
+struct PermissionActions: View {
+    let permission: SystemPermission
+
+    @EnvironmentObject private var controller: AppController
+
+    var body: some View {
+        VStack(alignment: .trailing, spacing: 4) {
+            // Requesting and opening System Settings are separate actions on
+            // purpose: firing both together steals focus from the very dialog
+            // the request is raising.
+            Button("Grant…") { permission.request() }
+                .buttonStyle(.borderedProminent)
+
+            Button("Open System Settings") { permission.openSystemSettings() }
+                .buttonStyle(.link)
+                .font(.caption)
+
+            if permission.isResolvedByRelaunch {
+                Button("Quit & Reopen") { controller.relaunch() }
+                    .buttonStyle(.link)
+                    .font(.caption)
+                    .help("Already enabled it? macOS only notices after PodTap restarts.")
+            }
+        }
     }
 }

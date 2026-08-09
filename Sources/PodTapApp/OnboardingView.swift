@@ -8,6 +8,7 @@ import SwiftUI
 /// PodTap silently does nothing, and a silent no-op is the worst possible
 /// first impression.
 struct OnboardingView: View {
+    @EnvironmentObject private var controller: AppController
     @ObservedObject var preferences: Preferences
     /// Called when setup finishes or is skipped, so the window can close and
     /// the controller can start listening.
@@ -86,11 +87,17 @@ struct OnboardingView: View {
             )
 
             ForEach(SystemPermission.allCases) { permission in
-                PermissionCard(permission: permission, refreshToken: permissionRefresh)
+                PermissionCard(
+                    permission: permission,
+                    isGranted: permission.isGranted(
+                        isReadingDevice: controller.isReadingDevice),
+                    refreshToken: permissionRefresh
+                )
             }
 
             Label(
-                "If you already granted these, you may need to quit and reopen PodTap.",
+                "Input Monitoring only takes effect once PodTap restarts, so use "
+                    + "Quit & Reopen if the switch is already on.",
                 systemImage: "info.circle"
             )
             .font(.callout)
@@ -192,7 +199,7 @@ struct OnboardingView: View {
 
             Spacer()
 
-            if step == .permissions && !SystemPermission.allGranted {
+            if step == .permissions && !SystemPermission.allGranted(isReadingDevice: controller.isReadingDevice) {
                 Button("Skip for now") { advance() }
                     .buttonStyle(.link)
             }
@@ -203,7 +210,7 @@ struct OnboardingView: View {
 
             Button(step == .ready ? "Start using PodTap" : "Continue") { advance() }
                 .keyboardShortcut(.defaultAction)
-                .disabled(step == .permissions && !SystemPermission.allGranted)
+                .disabled(step == .permissions && !SystemPermission.allGranted(isReadingDevice: controller.isReadingDevice))
         }
     }
 
@@ -267,12 +274,13 @@ private struct GestureRow: View {
 
 private struct PermissionCard: View {
     let permission: SystemPermission
+    let isGranted: Bool
     /// Exists only to force a redraw from the timer: macOS sends no
     /// notification when permissions change.
     let refreshToken: Date
 
     var body: some View {
-        let granted = permission.isGranted
+        let granted = isGranted
 
         HStack(alignment: .top, spacing: 14) {
             Image(systemName: granted ? "checkmark.circle.fill" : "lock.circle")
@@ -290,16 +298,7 @@ private struct PermissionCard: View {
             if granted {
                 Text("Granted").foregroundStyle(.green).fontWeight(.medium)
             } else {
-                VStack(alignment: .trailing, spacing: 4) {
-                    // Requesting and opening System Settings are separate
-                    // actions on purpose: firing both together steals focus
-                    // from the very dialog the request is raising.
-                    Button("Grant…") { permission.request() }
-                        .buttonStyle(.borderedProminent)
-                    Button("Open System Settings") { permission.openSystemSettings() }
-                        .buttonStyle(.link)
-                        .font(.caption)
-                }
+                PermissionActions(permission: permission)
             }
         }
         .padding(14)

@@ -34,7 +34,7 @@ public struct KeyCombination: Sendable, Equatable, Codable {
     /// Fn is included: it is a modifier like any other as far as the event
     /// system is concerned. Caps Lock is not — it latches, so it cannot be
     /// held.
-    static let supportedModifiers: UInt64 =
+    public static let supportedModifiers: UInt64 =
         CGEventFlags.maskCommand.rawValue
         | CGEventFlags.maskShift.rawValue
         | CGEventFlags.maskControl.rawValue

@@ -11,6 +11,9 @@ import KeyOutput
 final class AppController: ObservableObject {
     @Published private(set) var isDeviceConnected = false
     @Published private(set) var isDictating = false
+    /// Whether the EarPods are genuinely seized. Doubles as the only reliable
+    /// proof that Input Monitoring is in effect — see `EarPodsButtonMonitor`.
+    @Published private(set) var isReadingDevice = false
     /// Human-readable failure, or `nil` when everything is fine.
     @Published private(set) var failureMessage: String?
 
@@ -77,6 +80,7 @@ final class AppController: ObservableObject {
                 self?.onboardingWindow.close()
                 self?.start()
             }
+            .environmentObject(self)
         }
     }
 
@@ -88,12 +92,32 @@ final class AppController: ObservableObject {
         } catch {
             failureMessage = error.localizedDescription
         }
+        isReadingDevice = monitor.isReadingDevice
     }
 
     func stop() {
         abortGesture()
         monitor.stop()
         isDeviceConnected = false
+        isReadingDevice = false
+    }
+
+    /// Quits and reopens PodTap.
+    ///
+    /// The only cure for a stale Input Monitoring answer: the HID layer caches
+    /// it for the lifetime of the process, so a permission granted while PodTap
+    /// was running is invisible until a fresh one starts. The device is handed
+    /// back first, or the incoming instance would find it already seized.
+    func relaunch() {
+        prepareForTermination()
+
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.createsNewApplicationInstance = true
+        NSWorkspace.shared.openApplication(
+            at: Bundle.main.bundleURL, configuration: configuration
+        ) { _, _ in
+            Task { @MainActor in NSApp.terminate(nil) }
+        }
     }
 
     /// Opens settings. Reachable from the menu bar, and — crucially — from
@@ -129,6 +153,7 @@ final class AppController: ObservableObject {
 
     private func handleConnectionChange(_ connected: Bool) {
         isDeviceConnected = connected
+        isReadingDevice = monitor.isReadingDevice
         // Unplugging mid-press would otherwise leave the key down forever, and
         // the dictation app recording with no way to stop.
         if !connected { abortGesture() }
