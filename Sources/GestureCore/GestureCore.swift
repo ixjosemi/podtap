@@ -69,10 +69,34 @@ public struct GestureClassifier: Sendable {
 
     /// Procesa una transición del botón y devuelve las intenciones resultantes.
     ///
-    /// - TODO: implementar. Ver `tests/GestureCoreTests/GestureClassifierTests.swift`
-    ///   para el comportamiento esperado, incluidos los casos degenerados.
+    /// La duración de la pulsación —y no el estado interno— es la fuente de
+    /// verdad al soltar. Si el tick que debía marcar el cruce del umbral nunca
+    /// llegó (proceso ocupado, reloj perezoso), una pulsación larga se seguiría
+    /// reconociendo como mantenido en vez de degradarse a un play/pause falso.
     public mutating func handle(_ event: ButtonEvent) -> [GestureIntent] {
-        []
+        switch (state, event.phase) {
+        case (.idle, .pressed):
+            state = .pressing(since: event.timestamp)
+            return []
+
+        // Pulsación repetida sin soltar: rebote del dispositivo. Reiniciar el
+        // cronómetro impediría que un mantenido llegase nunca a disparar.
+        case (.pressing, .pressed), (.dictating, .pressed):
+            return []
+
+        // Soltar sin haber pulsado: la app pudo arrancar con el botón bajado.
+        case (.idle, .released):
+            return []
+
+        case (.dictating, .released):
+            state = .idle
+            return [.endDictation]
+
+        case (.pressing(let since), .released):
+            state = .idle
+            let heldFor = event.timestamp - since
+            return heldFor < holdThreshold ? [.emitPlayPause] : []
+        }
     }
 
     /// Avance del reloj. El clasificador no puede detectar por sí solo que una

@@ -11,8 +11,34 @@ El caso de uso original es el dictado por voz: apps como Wispr Flow, Superwhispe
 o el dictado nativo funcionan con *push-to-talk*, y mantener un botón del cable
 es más cómodo que buscar una tecla.
 
-> **Estado: en construcción.** La viabilidad técnica está verificada sobre
-> hardware real (ver abajo), pero la app todavía no es utilizable.
+Todo se configura desde la interfaz: la tecla, el umbral y los permisos. No hay
+que tocar código ni ficheros de configuración.
+
+## Instalación
+
+Descarga la app desde
+[Releases](https://github.com/ixjosemi/podtap/releases), o compílala:
+
+```sh
+git clone https://github.com/ixjosemi/podtap.git
+cd podtap
+./Scripts/build-app.sh
+cp -R build/PodTap.app /Applications/
+```
+
+Como todavía no está notarizada, la primera vez hay que abrirla con **clic
+derecho → Abrir**.
+
+Al arrancar, PodTap vive en la barra de menús. Abre **Ajustes…** y concede los
+dos permisos que pide:
+
+| Permiso | Para qué |
+|---|---|
+| Monitorización de entrada | Leer el botón del mando. |
+| Accesibilidad | Enviar la tecla configurada a la app en la que escribes. |
+
+Después elige la tecla en **Tecla al mantener** y configura esa misma tecla como
+atajo en tu app de dictado.
 
 ## Por qué existe
 
@@ -56,11 +82,12 @@ verdad: con música sonando, 17 pulsaciones no produjeron ni una pausa.
 ```
 Sources/
   GestureCore/    Lógica pura de clasificación. Sin IOKit ni CoreGraphics.
-  HIDInput/       IOHIDManager, seize, hotplug.            (pendiente)
-  KeyOutput/      Síntesis de CGEvent y play/pause.        (pendiente)
-  App/            Barra de menús, preferencias, permisos.  (pendiente)
+  HIDInput/       IOHIDManager, seize exclusivo, hotplug.
+  KeyOutput/      Síntesis de CGEvent y de play/pause.
+  PodTapApp/      Barra de menús, ajustes, permisos.
 tests/
   GestureCoreTests/
+  KeyOutputTests/
 ```
 
 `GestureCore` no tiene dependencias del sistema y recibe el tiempo inyectado, así

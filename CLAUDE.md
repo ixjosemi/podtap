@@ -55,10 +55,21 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test
 
 ## Estado
 
-- [x] `GestureCore`: tipos, `tick`, `interrupt`, suite de 13 tests.
-- [ ] `GestureCore.handle(_:)` — pendiente.
-- [ ] `HIDInput`: IOHIDManager, seize, hotplug, liberar la tecla al desconectar.
-- [ ] `KeyOutput`: síntesis de tecla configurable y de play/pause.
-- [ ] `App`: barra de menús, preferencias, onboarding de permisos
-      (Monitorización de entrada + Accesibilidad).
-- [ ] Empaquetado `.app` con `LSUIElement` y script de release.
+- [x] `GestureCore`: tipos, `handle`, `tick`, `interrupt`. 13 tests.
+- [x] `KeyOutput`: `KeyCombination` y `KeyEmitter`. 5 tests.
+- [x] `HIDInput`: seize exclusivo del interfaz Consumer, hotplug.
+- [x] `PodTapApp`: barra de menús, ajustes, permisos, grabador de atajo.
+- [x] Empaquetado `.app` con `LSUIElement` y firma ad-hoc.
+- [ ] Verificación end-to-end sobre hardware con permisos concedidos.
+- [ ] Arranque al iniciar sesión (`SMAppService`).
+- [ ] Icono propio, workflow de CI y release con binario adjunto.
+
+## Empaquetado
+
+`swift build` produce un ejecutable suelto; la `.app` la ensambla
+`Scripts/build-app.sh` (Info.plist con `LSUIElement`, más firma ad-hoc).
+
+La firma ad-hoc importa: sin ninguna firma, macOS no concede permisos de
+Accesibilidad de forma fiable. Aun así el `cdhash` cambia en cada compilación,
+así que **tras recompilar hay que volver a conceder los permisos**. Se resolverá
+con notarización y una identidad estable.
