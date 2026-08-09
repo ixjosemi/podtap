@@ -50,8 +50,8 @@
       </text>
 
       <text x="0" y="146" font-size="19" fill="#C4B5FD">
-        <tspan x="0">Push-to-talk from your headphone</tspan>
-        <tspan x="0" dy="27">cable — without losing play/pause.</tspan>
+        <tspan x="0">Dictate from your headphone cable</tspan>
+        <tspan x="0" dy="27">— one press to start, one to stop.</tspan>
       </text>
 
       <g transform="translate(0 208)">
@@ -67,28 +67,16 @@
       <rect x="0" y="0" width="500" height="384" rx="34" fill="url(#pane)"
             stroke="#FFFFFF" stroke-opacity="0.24" stroke-width="2"/>
 
-      <!-- Short tap -->
+      <!-- Press once: the key goes down and stays down -->
       <g transform="translate(40 56)">
-        <circle cx="26" cy="26" r="26" fill="#FFFFFF" fill-opacity="0.22"/>
-        <circle cx="26" cy="26" r="11" fill="#FFFFFF"/>
-        <text x="72" y="20" font-size="24" font-weight="650" fill="#FFFFFF">Short tap</text>
-        <text x="72" y="48" font-size="18" fill="#DDD6FE">Play / pause, exactly as before</text>
-        <text x="404" y="36" font-size="34" fill="#FFFFFF" text-anchor="middle">⏯</text>
-      </g>
-
-      <line x1="40" y1="176" x2="460" y2="176" stroke="#FFFFFF" stroke-opacity="0.18"
-            stroke-width="2"/>
-
-      <!-- Press and hold -->
-      <g transform="translate(40 216)">
         <circle cx="26" cy="26" r="26" fill="#FFFFFF" fill-opacity="0.22"/>
         <circle cx="26" cy="26" r="11" fill="#FFFFFF"/>
         <g fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round">
           <path d="M 46 12 A 24 24 0 0 1 46 40" stroke-opacity="0.85"/>
           <path d="M 58 2 A 36 36 0 0 1 58 50" stroke-opacity="0.45"/>
         </g>
-        <text x="104" y="20" font-size="24" font-weight="650" fill="#FFFFFF">Press and hold</text>
-        <text x="104" y="48" font-size="18" fill="#DDD6FE">Holds the key you chose</text>
+        <text x="104" y="20" font-size="24" font-weight="650" fill="#FFFFFF">Press once</text>
+        <text x="104" y="48" font-size="18" fill="#DDD6FE">Holds your key down</text>
 
         <g transform="translate(360 4)">
           <rect x="0" y="0" width="88" height="46" rx="11" fill="#FFFFFF" fill-opacity="0.92"/>
@@ -99,8 +87,19 @@
         </g>
       </g>
 
+      <line x1="40" y1="176" x2="460" y2="176" stroke="#FFFFFF" stroke-opacity="0.18"
+            stroke-width="2"/>
+
+      <!-- Press again: the key comes up -->
+      <g transform="translate(40 216)">
+        <circle cx="26" cy="26" r="26" fill="#FFFFFF" fill-opacity="0.22"/>
+        <circle cx="26" cy="26" r="11" fill="#FFFFFF"/>
+        <text x="104" y="20" font-size="24" font-weight="650" fill="#FFFFFF">Press again</text>
+        <text x="104" y="48" font-size="18" fill="#DDD6FE">Lets it go, dictation ends</text>
+      </g>
+
       <text x="250" y="352" font-size="16" fill="#C4B5FD" text-anchor="middle">
-        Threshold is configurable — measured taps run 79–231 ms
+        Talk in between — with the button free, so the mic works
       </text>
     </g>
   </g>

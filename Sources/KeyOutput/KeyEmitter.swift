@@ -1,24 +1,21 @@
-import AppKit
 import CoreGraphics
 import Foundation
 
 /// Synthesises the events PodTap must produce on the system.
 ///
-/// Three paths live here, and they are genuinely different:
+/// Two paths live here, and they are genuinely different:
 ///
 /// - A **key with modifiers** is an ordinary `CGEvent` keyboard event.
 /// - A **modifiers-only combination** (`⌃⇧`, or Globe on its own) never
 ///   produces a key event at all. It has to be emitted as a sequence of
 ///   modifier transitions, one per key, exactly as a human pressing them would
 ///   generate.
-/// - **Play/pause** has no public equivalent. Seizing the HID device means the
-///   original event stops existing, so it is rebuilt by hand with an
-///   `NSEvent.systemDefined` carrying the magic values macOS expects. This is
-///   the project's only undocumented dependency, deliberately confined here.
+///
+/// There used to be a third: re-emitting play/pause, which has no public
+/// equivalent and needed an `NSEvent.systemDefined` carrying undocumented magic
+/// values. The button no longer forwards play/pause, so that dependency is gone
+/// and everything here is public API.
 public final class KeyEmitter {
-    /// `NX_KEYTYPE_PLAY`, from IOKit/hidsystem/ev_keymap.h.
-    private static let mediaKeyPlay: Int32 = 16
-
     private let eventSource: CGEventSource?
 
     public init() {
@@ -101,39 +98,5 @@ public final class KeyEmitter {
         event.type = .flagsChanged
         event.flags = flags
         event.post(tap: .cghidEventTap)
-    }
-
-    // MARK: - Play/pause
-
-    /// Re-emits a full play/pause press and release to the system.
-    public func tapPlayPause() {
-        postMediaKey(down: true)
-        postMediaKey(down: false)
-    }
-
-    private func postMediaKey(down: Bool) {
-        // The 0xA00/0xB00 flags and the data1 bitfield are undocumented: they
-        // are the de facto contract every macOS media-key app relies on. If
-        // Apple changes them, play/pause passthrough breaks — button capture
-        // does not.
-        let flags = NSEvent.ModifierFlags(rawValue: down ? 0xA00 : 0xB00)
-        let state: Int = down ? 0xA : 0xB
-        let data1 = Int((Self.mediaKeyPlay << 16) | Int32(state << 8))
-
-        guard
-            let event = NSEvent.otherEvent(
-                with: .systemDefined,
-                location: .zero,
-                modifierFlags: flags,
-                timestamp: 0,
-                windowNumber: 0,
-                context: nil,
-                subtype: 8,
-                data1: data1,
-                data2: -1
-            )
-        else { return }
-
-        event.cgEvent?.post(tap: .cghidEventTap)
     }
 }

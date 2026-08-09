@@ -1,7 +1,8 @@
 # PodTap
 
-Remaps the USB-C EarPods remote button to a configurable key, keeping
-play/pause on a short tap.
+Turns the USB-C EarPods remote button into a dictation toggle: one press holds
+a configurable key down, the next lets it go. Play/pause is deliberately not
+forwarded.
 
 ## Hardware facts, already verified
 
@@ -42,9 +43,9 @@ Nothing in software can change this. It is not the HID seize either: the
 recording above was taken by an unrelated process.
 
 The consequence is the whole interaction model. Dictation must happen with the
-button **free**, so `GestureClassifier` latches the key down and lifts it on a
-later tap, rather than tracking the button. The dictation app still sees one
-long key press and needs no toggle mode.
+button **free**, so `GestureClassifier` holds the key down from one press to the
+next rather than tracking the button. The dictation app still sees one long key
+press and needs no toggle mode.
 
 ## Shortcut model
 
@@ -107,19 +108,26 @@ Caps Lock is excluded on purpose: it latches, so it cannot be held.
 
 ## Design decisions
 
-- **Short tap re-emits play/pause, a hold latches the configured key.**
-  Play/pause is decided on release, so it is delayed only by the length of the
-  tap itself. A closing press never produces one.
-- **Dictation starts when the threshold is crossed, not on release**, so the
-  gesture visibly takes while the button is still down. It then survives the
-  release, because that release is what un-mutes the microphone.
+- **The button is a dictation toggle and nothing else.** One press holds the
+  key down, the next lets it go. Play/pause is deliberately gone: the device is
+  seized, the press is never forwarded, and nothing re-emits it.
+- **Nothing measures time.** There is no threshold, no timer and no duration
+  comparison anywhere in the gesture path. Press duration was the axis of the
+  old design; keeping it would only reintroduce a decision the hardware already
+  made for us.
+- **`GestureClassifier` tracks the button's own position** (`opening`,
+  `closing`) purely so device chatter — two presses with no release between —
+  cannot read as a second gesture. It is the only failure mode left in a
+  four-state machine.
 - **The output key is configurable from v1.** The app assumes nothing about
   Wispr Flow or any other specific app.
 - **Wired EarPods only.** AirPods arrive over Bluetooth AVRCP, expose no HID
   device of their own, and cannot be seized this way. Out of scope.
-- **Input via pure HID, no undocumented API.** The sole exception is *output*:
-  re-emitting play/pause requires `NSEvent.systemDefined` with the magic
-  `0xa00`/`0xb00` flags. That fragility is confined to `KeyOutput`.
+- **No undocumented API anywhere.** There used to be exactly one: re-emitting
+  play/pause needs `NSEvent.systemDefined` with magic `0xa00`/`0xb00` flags.
+  Dropping play/pause deleted it. Do not reintroduce that code to bring the
+  feature back without saying so explicitly — it was the project's only
+  fragility against an OS update.
 - **Never in the Dock.** `LSUIElement` is set. The menu bar icon is optional;
   with it hidden, reopening the app from Finder is the way back to settings,
   handled via `applicationShouldHandleReopen`.
@@ -146,9 +154,8 @@ never created.
 ## Conventions
 
 - Everything user-facing and every source comment is in **English**.
-- `GestureCore` imports neither IOKit nor CoreGraphics and takes its clock by
-  injection. All decision logic lives there so it can be tested without
-  hardware.
+- `GestureCore` imports neither IOKit nor CoreGraphics, and reads no clock at
+  all. All decision logic lives there so it can be tested without hardware.
 - Tests live in `tests/`, not `Tests/`. Paths are declared explicitly in
   `Package.swift`.
 - Test helpers cannot be named `release`: it collides with the `NSObject`
@@ -323,11 +330,12 @@ Cut a release with `git tag v0.2.0 && git push origin v0.2.0`.
 
 ## Status
 
-- [x] `GestureCore`: `handle`, `tick`, `interrupt`. 13 tests.
-- [x] `KeyOutput`: `KeyCombination`, `KeyEmitter`, `ShortcutRecording`. 19 tests.
+- [x] `GestureCore`: `handle`, `interrupt`. 14 tests, no clock involved.
+- [x] `KeyOutput`: `KeyCombination`, `KeyEmitter`, `ShortcutRecording`. 28 tests.
 - [x] `HIDInput`: exclusive seize of the Consumer interface, hotplug.
 - [x] `PodTapApp`: menu bar, settings, key recorder, first-run setup flow.
+- [x] End-to-end on hardware: Globe recorded, key held across a dictation,
+      Wispr Flow driven from the remote.
 - [x] Icon and README hero as SVG; `.icns`, `.app` and `.dmg` pipelines.
-- [ ] End-to-end verification on hardware with permissions granted.
 - [ ] Launch at login (`SMAppService`).
 - [ ] Notarisation, CI workflow, release with attached binary.

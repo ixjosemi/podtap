@@ -64,19 +64,20 @@ struct OnboardingView: View {
             VStack(spacing: 14) {
                 GestureRow(
                     symbol: "hand.tap",
-                    title: "Short tap",
-                    detail: "Play / pause, exactly as before."
+                    title: "Press once",
+                    detail: "Holds your key down. Talk with the button free."
                 )
                 GestureRow(
-                    symbol: "waveform",
-                    title: "Press and hold, then let go",
-                    detail: "Holds your key down. Talk, then tap once to stop."
+                    symbol: "checkmark.circle",
+                    title: "Press again",
+                    detail: "Lets the key go and ends the dictation."
                 )
             }
 
             Text(
                 "The EarPods mute their microphone while the button is held, so "
-                    + "PodTap keeps the key down for you and leaves the button free."
+                    + "PodTap keeps the key down for you and leaves the button free. "
+                    + "The button no longer sends play/pause."
             )
             .font(.caption)
             .foregroundStyle(.tertiary)
@@ -119,33 +120,13 @@ struct OnboardingView: View {
         VStack(alignment: .leading, spacing: 18) {
             StepHeader(
                 title: "Choose your key",
-                subtitle: "PodTap latches this key down until you tap the button again."
+                subtitle: "PodTap holds this key down between one press and the next."
             )
 
             HStack(spacing: 16) {
-                Text("Key to hold")
+                Text("Key to send")
                 Spacer()
                 KeyRecorderView(combination: $preferences.outputCombination)
-            }
-            .padding(16)
-            .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 10))
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Hold threshold")
-                HStack {
-                    Slider(
-                        value: $preferences.holdThreshold,
-                        in: Preferences.thresholdRange,
-                        step: 0.05
-                    )
-                    Text("\(Int(preferences.holdThreshold * 1000)) ms")
-                        .monospacedDigit()
-                        .frame(width: 66, alignment: .trailing)
-                        .foregroundStyle(.secondary)
-                }
-                Text("Anything shorter stays a play/pause tap.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
             .padding(16)
             .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 10))
@@ -192,8 +173,7 @@ struct OnboardingView: View {
     /// localised key with interpolation.
     private var summary: String {
         let key = preferences.outputCombination.displayName
-        return "Hold the button to send \(key), talk, then tap to stop. "
-            + "A short tap is still play/pause."
+        return "Press the button to send \(key), talk, then press again to stop."
     }
 
     // MARK: - Footer

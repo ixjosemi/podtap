@@ -11,27 +11,78 @@
 
 # PodTap
 
-**PodTap turns the button on your wired Apple EarPods into any macOS key you
-want — while keeping play/pause exactly where it was.**
+**PodTap turns the button on your wired Apple EarPods into a dictation switch:
+press to start talking, press again to stop.**
 
-- **Short tap** → play/pause, unchanged.
-- **Press and hold, then let go** → PodTap latches your key down. Talk with the
-  button free, then **tap once** to lift it.
+The button stops being a play/pause button and becomes the key of your choice,
+held down for exactly as long as you are speaking.
 
 It works with Wispr Flow, Superwhisper, macOS Dictation, Discord, Slack huddles,
-or anything else driven by a held key — no toggle mode required, because as far
-as those apps are concerned the key really is held down the whole time.
-
-> **Why latch instead of hold?** Because the EarPods will not let you hold.
-> The remote button is read through the microphone line, so pressing it mutes
-> the microphone — measured over two seconds of continuous speech with the
-> button down, 88 200 consecutive samples of digital silence, every one exactly
-> zero. Push-to-talk on this hardware would kill the microphone for precisely
-> as long as you meant to be recording. PodTap holds the key so your thumb
-> does not have to.
+or anything else driven by a held key — no toggle mode required at the other
+end, because as far as those apps are concerned the key really is held down the
+whole time.
 
 Everything is configured in the app. There is no config file, no scripting, and
 nothing to compile.
+
+---
+
+## How you use it
+
+```
+      press ──────────▶ talk ──────────▶ press
+        │                                  │
+        │      button free, and this is    │
+        │      the only part that records  │
+        │                                  │
+   your key DOWN ═══════════════════ your key UP
+```
+
+**Press** the button once. PodTap presses your key and leaves it down; the menu
+bar icon turns into a waveform so you can see it took.
+
+**Talk**, for as long as you like, with the button free. Your dictation app sees
+an ordinary key being held, exactly as if your finger were on it.
+
+**Press** again to finish. The key comes up and dictation ends.
+
+That is the whole interaction. There is no hold, no threshold, and no timing to
+get right — press duration is not measured at all.
+
+> **Play/pause is gone, deliberately.** PodTap takes the device exclusively, so
+> the press never reaches macOS and never controls playback. The button belongs
+> to dictation now. If you want play/pause back, quit PodTap and the button
+> returns to normal instantly.
+
+### Why the key is held by PodTap and not by your thumb
+
+Because the EarPods will not let you hold. **The remote button mutes the
+microphone for as long as it is pressed**, and it is not subtle about it.
+
+Recorded from the EarPods microphone during nine seconds of continuous speech,
+with the button held only for the middle three:
+
+```
+0.75 – 2.75 s   button free     −25 dB   ███████████████
+3.75 – 6.00 s   BUTTON HELD     −99 dB
+6.25 – 8.00 s   button free     −17 dB   ███████████████
+```
+
+That is not a quiet signal. Across those two seconds every one of **88 200
+samples is exactly zero**, maximum absolute value 0 — against 66 137 non-zero
+samples out of 66 150 either side. Digital silence, not attenuation.
+
+The reason is in the hardware: the remote is read through the microphone line,
+the same resistor-ladder trick the analogue EarPods use. While a button is down
+that line is busy reporting the button, not carrying audio.
+
+So push-to-talk is impossible on these headphones. The microphone is dead for
+precisely as long as the gesture meant to be recording. No software can work
+around it — the recording above was made by a process with no connection to
+PodTap at all.
+
+Hence one press to start and another to stop: PodTap holds the key so your thumb
+does not have to, and your thumb stays off the microphone.
 
 ---
 
@@ -87,8 +138,8 @@ the system and gone by the time it would be delivered — so PodTap captures
 shortcuts one layer below, and swallows what it captures. Pressing ⌘Q into the
 field records ⌘Q instead of quitting.
 
-Caps Lock is not offered. It latches rather than being held, so it cannot drive
-a press-and-hold trigger.
+Caps Lock is not offered. It latches rather than being held, so PodTap cannot
+keep it down for the length of a dictation.
 
 | Permission | Why it is needed |
 |---|---|
@@ -130,30 +181,42 @@ an ordinary HID device publishing the `PlayPause` usage (`0x00CD`) on the
 Consumer Page (`0x0C`), with genuine press and release transitions.
 
 PodTap opens that device with `kIOHIDOptionsTypeSeizeDevice`, which stops the
-event from reaching the system at all, and then decides what to do based on how
-long the press lasted. Because the original event no longer exists, the
-play/pause for a short tap is synthesised back.
+event from reaching the system at all. That is what frees the button: macOS
+never learns it was pressed, so nothing pauses, and PodTap is free to give the
+press an entirely different meaning.
 
-Seizing is not optional. macOS synthesises play/pause on button *down*, so by
-the time a `CGEventTap` could tell a hold from a tap, the music has already
+Seizing is not optional. macOS synthesises play/pause on button *down*, so a
+`CGEventTap` would only ever see the aftermath — the music would already have
 paused. Only intercepting below that layer is early enough.
+
+Everything downstream is a four-state machine in
+[`GestureCore`](Sources/GestureCore), which imports neither IOKit nor
+CoreGraphics and can be replayed in a test as a plain sequence of events. It
+measures nothing and holds no timers; the button's own position is tracked only
+so that device chatter — two presses with no release between them — cannot be
+mistaken for a second gesture.
 
 ### Measurements from real hardware
 
-Captured with the diagnostic tools in [`tools/`](tools), on USB-C EarPods
-(`vid=0x05AC pid=0x110B`) running macOS 26.5:
+Captured on USB-C EarPods (`vid=0x05AC pid=0x110B`) running macOS 26.5, with the
+diagnostic tools in [`tools/`](tools):
 
-| | n | range | median |
-|---|---|---|---|
-| Taps | 15 | 79 – 231 ms | ~111 ms |
-| Holds | 2 | 1774 – 1947 ms | — |
+| | Result |
+|---|---|
+| Seizing genuinely blocks | 17 presses with music playing, not a single pause |
+| Press durations | taps 79 – 231 ms, holds 1774 – 1947 ms |
+| **Microphone while held** | **88 200 consecutive zero samples** |
 
-The gap between the two groups is wide enough that a 300 ms threshold
-classifies every sample correctly. Seizing was also confirmed to genuinely
-block: with music playing, 17 presses produced not a single pause.
+The last one is the measurement that shaped the whole design — see
+[why the key is held by PodTap](#why-the-key-is-held-by-podtap-and-not-by-your-thumb).
+The press durations are recorded for completeness; nothing uses them any more,
+because duration no longer distinguishes anything.
 
-The threshold is adjustable in Settings, since how long *you* hold a button is
-personal.
+### What happens if something goes wrong
+
+The key is held by PodTap, so it is PodTap's job to let go of it. Unplugging the
+EarPods mid-dictation, quitting the app, or disabling it in Settings all lift the
+key first. A held key is never left stranded down.
 
 ## Architecture
 
@@ -161,7 +224,7 @@ personal.
 Sources/
   GestureCore/    Pure classification logic. No IOKit, no CoreGraphics.
   HIDInput/       IOHIDManager, exclusive seize, hotplug handling.
-  KeyOutput/      CGEvent and play/pause synthesis.
+  KeyOutput/      CGEvent synthesis and shortcut recording.
   PodTapApp/      Menu bar, setup flow, settings, permissions.
 tests/
   GestureCoreTests/
@@ -169,13 +232,15 @@ tests/
 tools/            Standalone HID probes used to derive the numbers above.
 ```
 
-`GestureCore` has no system dependencies and takes its clock by injection, so
-the entire state machine is tested without hardware or real time.
+`GestureCore` has no system dependencies, so the entire state machine is tested
+without hardware. The same goes for the trickier half of shortcut recording,
+which lives in `KeyOutput` as a pure state machine and is exercised without a
+keyboard.
 
-The one piece of undocumented API in the project is play/pause synthesis, which
-needs `NSEvent.systemDefined` with the magic `0xa00`/`0xb00` flags. It is
-deliberately confined to a single file: if Apple ever changes it, play/pause
-passthrough breaks — button capture does not.
+**PodTap uses no undocumented API.** It did while the button still forwarded
+play/pause, which has no public equivalent and needed `NSEvent.systemDefined`
+with magic `0xa00`/`0xb00` flags. Dropping play/pause took that dependency with
+it.
 
 ## Development
 

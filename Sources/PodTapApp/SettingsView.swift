@@ -35,28 +35,16 @@ struct SettingsView: View {
             Section("Mapping") {
                 Toggle("Enable PodTap", isOn: $preferences.isEnabled)
 
-                LabeledContent("Key to hold") {
+                LabeledContent("Key to send") {
                     KeyRecorderView(combination: $preferences.outputCombination)
                 }
 
-                VStack(alignment: .leading, spacing: 4) {
-                    LabeledContent("Hold threshold") {
-                        Text("\(Int(preferences.holdThreshold * 1000)) ms")
-                            .monospacedDigit()
-                            .foregroundStyle(.secondary)
-                    }
-                    Slider(
-                        value: $preferences.holdThreshold,
-                        in: Preferences.thresholdRange,
-                        step: 0.05
-                    )
-                    Text(
-                        "Below the threshold the button still sends play/pause. Above it, "
-                            + "PodTap latches the key down until you tap the button again."
-                    )
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                }
+                Text(
+                    "Press the remote button to hold this key down, and press it again "
+                        + "to let go. The button no longer sends play/pause."
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
             }
 
             Section("Appearance") {

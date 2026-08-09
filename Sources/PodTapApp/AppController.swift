@@ -24,14 +24,10 @@ final class AppController: ObservableObject {
     private let onboardingWindow = HostedWindowController()
     private let settingsWindow = HostedWindowController()
     private var classifier = GestureClassifier()
-    /// One-shot timer armed when a press starts: it is what turns "still held"
-    /// into an event, since the hardware sends nothing at the threshold.
-    private var holdTimer: Timer?
     private var cancellables = Set<AnyCancellable>()
 
     init(preferences: Preferences) {
         self.preferences = preferences
-        classifier.holdThreshold = preferences.holdThreshold
 
         monitor.onButton = { [weak self] transition, timestamp in
             self?.handleButton(transition, at: timestamp)
@@ -39,10 +35,6 @@ final class AppController: ObservableObject {
         monitor.onConnectionChange = { [weak self] connected in
             self?.handleConnectionChange(connected)
         }
-
-        preferences.$holdThreshold
-            .sink { [weak self] threshold in self?.classifier.holdThreshold = threshold }
-            .store(in: &cancellables)
 
         // `dropFirst` avoids acting on the initial value: start-up happens once,
         // below, outside `init`.
@@ -138,17 +130,14 @@ final class AppController: ObservableObject {
     // MARK: - Events
 
     private func handleButton(_ transition: ButtonTransition, at timestamp: TimeInterval) {
-        let event = ButtonEvent(
-            phase: transition == .pressed ? .pressed : .released,
-            timestamp: timestamp
+        apply(
+            classifier.handle(
+                ButtonEvent(
+                    phase: transition == .pressed ? .pressed : .released,
+                    timestamp: timestamp
+                )
+            )
         )
-
-        switch transition {
-        case .pressed: scheduleHoldTimer()
-        case .released: cancelHoldTimer()
-        }
-
-        apply(classifier.handle(event))
     }
 
     private func handleConnectionChange(_ connected: Bool) {
@@ -160,33 +149,12 @@ final class AppController: ObservableObject {
     }
 
     private func abortGesture() {
-        cancelHoldTimer()
         apply(classifier.interrupt())
-    }
-
-    private func scheduleHoldTimer() {
-        cancelHoldTimer()
-        holdTimer = Timer.scheduledTimer(
-            withTimeInterval: preferences.holdThreshold,
-            repeats: false
-        ) { [weak self] _ in
-            Task { @MainActor in
-                guard let self else { return }
-                self.apply(self.classifier.tick(at: ProcessInfo.processInfo.systemUptime))
-            }
-        }
-    }
-
-    private func cancelHoldTimer() {
-        holdTimer?.invalidate()
-        holdTimer = nil
     }
 
     private func apply(_ intents: [GestureIntent]) {
         for intent in intents {
             switch intent {
-            case .emitPlayPause:
-                emitter.tapPlayPause()
             case .beginDictation:
                 emitter.pressDown(preferences.outputCombination)
                 isDictating = true

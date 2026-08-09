@@ -10,22 +10,13 @@ import SwiftUI
 final class Preferences: ObservableObject {
     private enum Key {
         static let combination = "outputKeyCombination"
-        static let holdThreshold = "holdThresholdSeconds"
         static let isEnabled = "isEnabled"
         static let showsMenuBarIcon = "showsMenuBarIcon"
         static let hasCompletedSetup = "hasCompletedSetup"
     }
 
-    /// Range offered in the interface. The minimum leaves headroom over the
-    /// longest taps measured on real hardware (231 ms).
-    static let thresholdRange: ClosedRange<Double> = 0.25...1.0
-
     @Published var outputCombination: KeyCombination {
         didSet { persistCombination() }
-    }
-
-    @Published var holdThreshold: Double {
-        didSet { defaults.set(holdThreshold, forKey: Key.holdThreshold) }
     }
 
     @Published var isEnabled: Bool {
@@ -55,9 +46,6 @@ final class Preferences: ObservableObject {
         } else {
             outputCombination = .defaultCombination
         }
-
-        let storedThreshold = defaults.double(forKey: Key.holdThreshold)
-        holdThreshold = storedThreshold > 0 ? storedThreshold : 0.3
 
         isEnabled = defaults.object(forKey: Key.isEnabled) as? Bool ?? true
         showsMenuBarIcon = defaults.object(forKey: Key.showsMenuBarIcon) as? Bool ?? true

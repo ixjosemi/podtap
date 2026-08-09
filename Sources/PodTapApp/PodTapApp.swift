@@ -60,8 +60,8 @@ private struct MenuContent: View {
         if controller.isDeviceConnected && preferences.isEnabled {
             Text(
                 controller.isDictating
-                    ? "Dictating — tap the button to stop"
-                    : "Hold the button to send \(preferences.outputCombination.displayName)"
+                    ? "Dictating — press the button to stop"
+                    : "Press the button to send \(preferences.outputCombination.displayName)"
             )
         }
 

@@ -4,8 +4,8 @@ import Foundation
 ///
 /// USB-C EarPods publish the `PlayPause` usage (`0x00CD`) on the Consumer Page
 /// (`0x0C`) with genuine 1/0 value transitions. macOS collapses that pair into
-/// a single playback toggle further up the stack; working below that layer
-/// keeps the press duration intact.
+/// a single playback toggle further up the stack; working below that layer is
+/// what makes the button available for something else entirely.
 public enum ButtonPhase: Sendable, Equatable {
     case pressed
     case released
@@ -13,8 +13,9 @@ public enum ButtonPhase: Sendable, Equatable {
 
 /// A button event with its monotonic timestamp, in seconds.
 ///
-/// Time is injected rather than read from a global clock so classification is
-/// deterministic and testable without hardware.
+/// Nothing here measures durations any more, but the timestamp is kept: it
+/// costs nothing, it is what the HID layer already has, and it is the first
+/// thing any future gesture would need.
 public struct ButtonEvent: Sendable, Equatable {
     public let phase: ButtonPhase
     public let timestamp: TimeInterval
@@ -28,10 +29,7 @@ public struct ButtonEvent: Sendable, Equatable {
 /// What the app should make happen. Deliberately abstract: this module knows
 /// nothing about `CGEvent` or which key the user configured.
 public enum GestureIntent: Sendable, Equatable {
-    /// Re-emit play/pause to the system. Required because seizing the device
-    /// means the original event no longer reaches anyone.
-    case emitPlayPause
-    /// Press the configured key and hold it down.
+    /// Press the configured key and leave it down.
     case beginDictation
     /// Release the configured key.
     case endDictation
@@ -39,23 +37,25 @@ public enum GestureIntent: Sendable, Equatable {
 
 /// Observable state of the classifier. Public so the menu bar can reflect it
 /// and so tests can assert on it.
+///
+/// The button's own position is part of the state rather than a separate flag,
+/// because the only thing that can go wrong here is mistaking device chatter —
+/// two presses with no release between them — for a second gesture.
 public enum ClassifierState: Sendable, Equatable {
-    /// Button up, nothing in flight.
+    /// Nothing running, button up.
     case idle
-    /// Button down since `since`, hold threshold not yet crossed.
-    case pressing(since: TimeInterval)
-    /// The key is latched down. The button may be up or down; dictation runs
-    /// until a closing press.
+    /// Dictation just started and the button is still down.
+    case opening
+    /// Dictation running with the button free. This is the state that matters:
+    /// it is the only one in which the microphone works.
     case dictating
-    /// The closing press has been seen and the key is already up. Waiting for
-    /// the button to come back up so that release is not read as a fresh tap.
+    /// Dictation just ended and the button is still down.
     case closing
 }
 
-/// Translates physical button presses into intents, applying the policy
-/// "short tap means play/pause, press and hold latches the key down".
+/// Turns presses of the remote button into a dictation on/off toggle.
 ///
-/// ### Why the key latches instead of following the button
+/// ### Why a toggle, and why the key latches
 ///
 /// USB-C EarPods mute their own microphone for as long as the remote button is
 /// held. Measured over two seconds of continuous speech with the button down:
@@ -64,103 +64,70 @@ public enum ClassifierState: Sendable, Equatable {
 /// resistor trick the analogue remote uses — so holding it is literally
 /// silencing the capsule.
 ///
-/// Push-to-talk is therefore impossible on this hardware: the microphone is
-/// dead precisely during the gesture meant to record. The key is held by PodTap
-/// instead, freeing the button, and a later tap lifts it. To the dictation app
-/// nothing has changed — it still sees a key held down for the whole utterance.
+/// Anything that asks the user to keep the button down therefore records
+/// silence. One press starts, the button is released, and the key stays down on
+/// its own until a second press. To the dictation app it looks like an ordinary
+/// key held for the whole utterance, so no toggle mode is needed at the other
+/// end.
+///
+/// Play/pause is gone by choice, not by accident: the device is seized, the
+/// press is never forwarded, and the button belongs to dictation alone.
 ///
 /// A dependency-free `struct`: the same value can be replayed in a test by
-/// feeding it a sequence of events and ticks.
+/// feeding it a sequence of events.
 public struct GestureClassifier: Sendable {
-    /// How many seconds a press must last before it stops being a tap.
-    ///
-    /// Measured on real hardware: user taps land between 79 and 231 ms, while
-    /// a deliberate hold runs past 1700 ms.
-    public var holdThreshold: TimeInterval
-
     public private(set) var state: ClassifierState
 
-    public init(holdThreshold: TimeInterval = 0.3, state: ClassifierState = .idle) {
-        self.holdThreshold = holdThreshold
+    public init(state: ClassifierState = .idle) {
         self.state = state
     }
 
     /// Processes a button transition and returns the resulting intents.
-    ///
-    /// Press duration — not internal state — is the source of truth on release.
-    /// If the tick meant to mark the threshold crossing never arrived (busy
-    /// process, lazy clock), a long press is still recognised as a hold instead
-    /// of degrading into a spurious play/pause.
     public mutating func handle(_ event: ButtonEvent) -> [GestureIntent] {
         switch (state, event.phase) {
         case (.idle, .pressed):
-            state = .pressing(since: event.timestamp)
-            return []
+            state = .opening
+            return [.beginDictation]
 
-        // Any press while the key is latched closes the dictation, whatever
-        // its length. This is the one gesture that must never be mistaken for
-        // a play/pause tap.
         case (.dictating, .pressed):
             state = .closing
             return [.endDictation]
 
-        // Repeated press without a release: device chatter. Restarting the
-        // timer would stop a hold from ever firing.
-        case (.pressing, .pressed), (.closing, .pressed):
+        // Repeated press with no release in between: device chatter. Acting on
+        // it would start and immediately stop, leaving the button looking dead.
+        case (.opening, .pressed), (.closing, .pressed):
             return []
 
-        // Release with no press on record: the app may have started while the
-        // button was already down.
-        case (.idle, .released):
+        // Letting go of the opening press is what brings the microphone back.
+        // It ends nothing — that is the entire point of the latch.
+        case (.opening, .released):
+            state = .dictating
             return []
 
-        // Letting go is exactly what brings the microphone back, so it ends
-        // nothing. The key stays down until the closing press.
-        case (.dictating, .released):
-            return []
-
-        // The button coming up after the closing press. The key is already up;
-        // emitting play/pause here would punctuate every dictation with one.
         case (.closing, .released):
             state = .idle
             return []
 
-        case (.pressing(let since), .released):
-            let heldFor = event.timestamp - since
-            guard heldFor < holdThreshold else {
-                // The tick that should have armed the latch never arrived
-                // (busy process, lazy clock). Duration alone is enough, and
-                // without this the whole gesture would silently do nothing.
-                state = .dictating
-                return [.beginDictation]
-            }
-            state = .idle
-            return [.emitPlayPause]
+        // Release with no press on record: the app may have started while the
+        // button was already down.
+        case (.idle, .released), (.dictating, .released):
+            return []
         }
-    }
-
-    /// Clock advance. The classifier cannot notice on its own that a press has
-    /// become a hold — no HID event arrives at the threshold — so the input
-    /// layer drives it.
-    ///
-    /// Firing here rather than on release gives the gesture its confirmation:
-    /// the latch closes while the button is still down, so the user can see it
-    /// took and let go.
-    public mutating func tick(at now: TimeInterval) -> [GestureIntent] {
-        guard case .pressing(let since) = state else { return [] }
-        guard now - since >= holdThreshold else { return [] }
-
-        state = .dictating
-        return [.beginDictation]
     }
 
     /// Aborts any gesture in flight without producing spurious side effects.
     ///
-    /// Called when the EarPods are unplugged or the system sleeps. An open
-    /// dictation must be closed: otherwise the key stays down forever and the
-    /// dictation app records without end.
+    /// Called when the EarPods are unplugged or the system sleeps. Because the
+    /// latch outlives the button, this is the only thing standing between an
+    /// interrupted dictation and a key left held down forever.
     public mutating func interrupt() -> [GestureIntent] {
         defer { state = .idle }
-        return state == .dictating ? [.endDictation] : []
+
+        switch state {
+        case .opening, .dictating: return [.endDictation]
+        // The key is already up in `.closing`, and releasing it twice would
+        // leave the dictation app with an unmatched key-up.
+        case .idle, .closing: return []
+        }
     }
 }
