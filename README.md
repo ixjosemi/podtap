@@ -209,7 +209,10 @@ PODTAP_SIGNING_IDENTITY="Apple Development: you@example.com (TEAMID)" \
 > assessment time. `build-app.sh` verifies with `spctl` after signing and falls
 > back to ad-hoc rather than shipping something the system will quarantine.
 
-If permissions still misbehave after switching, clear the stale entries once:
+PodTap clears its own stale TCC records before asking for a permission, so the
+usual failure — System Settings showing the app ticked while the app is denied,
+and no dialog appearing when you ask — resolves itself from the **Grant…**
+button. The equivalent by hand:
 
 ```sh
 tccutil reset Accessibility com.github.ixjosemi.podtap

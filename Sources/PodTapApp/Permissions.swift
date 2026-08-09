@@ -72,6 +72,8 @@ enum SystemPermission: CaseIterable, Identifiable {
     /// Deliberately does not open System Settings: doing both at once steals
     /// focus from the dialog this call is trying to raise.
     func request() {
+        clearStaleRecord()
+
         switch self {
         case .inputMonitoring:
             EarPodsButtonMonitor.requestInputMonitoringAccess()
@@ -79,6 +81,46 @@ enum SystemPermission: CaseIterable, Identifiable {
             let options =
                 [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
             AXIsProcessTrustedWithOptions(options)
+        }
+    }
+
+    /// The name `tccutil` knows this permission by.
+    private var tccServiceName: String {
+        switch self {
+        case .inputMonitoring: return "ListenEvent"
+        case .accessibility: return "Accessibility"
+        }
+    }
+
+    /// Deletes whatever TCC is holding for PodTap before asking again.
+    ///
+    /// Without this, granting is impossible after an update. TCC matches a
+    /// stored decision against the binary that earned it, and every PodTap
+    /// build has a different ad-hoc signature. The old decision survives: the
+    /// row in System Settings stays listed and ticked while the permission no
+    /// longer applies to the app that is running, and asking for it raises **no
+    /// dialog at all**, because as far as TCC is concerned the question was
+    /// already answered. Nothing the user can click resolves that — toggling
+    /// the switch keeps the stale record, it only flips it off and on.
+    ///
+    /// Only ever reached from `request()`, which the interface offers solely
+    /// when the permission is *not* in effect, so there is never a working
+    /// grant here to throw away.
+    private func clearStaleRecord() {
+        guard let bundleIdentifier = Bundle.main.bundleIdentifier else { return }
+
+        let tccutil = Process()
+        tccutil.executableURL = URL(fileURLWithPath: "/usr/bin/tccutil")
+        tccutil.arguments = ["reset", tccServiceName, bundleIdentifier]
+
+        do {
+            try tccutil.run()
+            tccutil.waitUntilExit()
+        } catch {
+            // Not fatal: the request below is what the user actually asked
+            // for, and it still runs. Worth surfacing in Console, though,
+            // because it explains a request that raises no dialog.
+            NSLog("PodTap: could not reset \(tccServiceName) — \(error)")
         }
     }
 

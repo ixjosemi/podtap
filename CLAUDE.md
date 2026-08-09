@@ -242,25 +242,45 @@ Accessibility has no such problem: `AXIsProcessTrusted()` is evaluated live.
 
 ### The TCC trap
 
-Without any signature macOS will not reliably grant Accessibility at all. And
-TCC keys permissions on **path plus code requirement**. With an ad-hoc
-signature, that requirement embeds a `cdhash` that changes on every build.
-Consequences, learned the hard way:
+Without any signature macOS will not reliably grant Accessibility at all. TCC
+keys permissions on **path plus code requirement**, and with an ad-hoc signature
+that requirement embeds a `cdhash` which changes on every build.
 
-- Rebuilding invalidates existing grants. System Settings still shows the
-  checkbox ticked while `AXIsProcessTrusted()` returns `false`.
+**A rebuild does not necessarily invalidate a grant.** An earlier version of
+this file claimed it always does; measured on macOS 26.5, it does not. Replacing
+`/Applications/PodTap.app` in place took the cdhash from `8c69bdc1…` to
+`0cbc3328…`, and both permissions stayed in effect — Accessibility still read as
+trusted, and the seize still succeeded. Do not treat a lost permission as the
+expected cost of rebuilding; go and find the actual cause.
+
+What genuinely breaks is **duplicate records**. TCC can end up holding more than
+one decision for the same bundle identifier — a copy launched from a shell, or
+from `build/`, records against a different identity. Then:
+
+- System Settings lists PodTap ticked, while the app is denied.
+- Asking for the permission raises **no dialog at all**, because as far as TCC
+  is concerned the question was already answered.
+- Toggling the switch does not help: it flips the stale record rather than
+  replacing it.
+
+That combination is unrecoverable from the interface, which is why `request()`
+runs `tccutil reset` for its own bundle identifier first. It is safe there
+because the interface only offers the request when the permission is not in
+effect. The number of "Successfully reset" lines `tccutil` prints is the number
+of stale identities that had accumulated — it printed **two** when this was
+diagnosed.
+
+Still true, and still the cause of those duplicates:
+
 - Two copies of the app on disk are two distinct identities. Keep exactly one,
   in `/Applications`.
 - Launching the binary from a shell makes the **terminal** the responsible
-  process, so the grant is recorded against the wrong app. Always launch from
-  Finder when testing permissions.
-- Recovery: `tccutil reset Accessibility com.github.ixjosemi.podtap` and
-  `tccutil reset ListenEvent com.github.ixjosemi.podtap`, then re-grant. The
-  number of times it prints "Successfully reset" is the number of stale
-  identities that had accumulated.
+  process, so the grant is recorded against the wrong app. Always launch through
+  LaunchServices (`open -a`) or Finder when testing permissions.
 
-A stable signing identity (self-signed certificate, or Developer ID) is the real
-fix, since the requirement would pin to the certificate rather than the hash.
+A stable signing identity (self-signed certificate, or Developer ID) would make
+the requirement pin to the certificate rather than the hash, removing the
+question entirely.
 
 ## Releases
 
