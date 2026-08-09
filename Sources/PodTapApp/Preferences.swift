@@ -57,11 +57,14 @@ final class Preferences: ObservableObject {
         defaults.set(encoded, forKey: Key.combination)
     }
 
-    /// Version shown in the interface, read from the bundle.
+    /// Version shown in the interface, read from the bundle. The build number
+    /// only matters in a bug report, so it stays out of the window and lives
+    /// in `buildNumber` for the tooltip.
     var appVersion: String {
-        let info = Bundle.main.infoDictionary
-        let short = info?["CFBundleShortVersionString"] as? String ?? "0.0.0"
-        let build = info?["CFBundleVersion"] as? String ?? "0"
-        return "\(short) (\(build))"
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.0.0"
+    }
+
+    var buildNumber: String {
+        Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "0"
     }
 }

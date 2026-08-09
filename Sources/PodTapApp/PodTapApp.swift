@@ -1,4 +1,5 @@
 import AppKit
+import GestureCore
 import SwiftUI
 
 @main
@@ -43,10 +44,14 @@ struct PodTapApp: App {
     }
 
     /// The icon carries the state at a glance: recording, ready, or no EarPods.
+    /// Derived from the same `AppStatus` the settings window shows, so the two
+    /// cannot drift apart.
     private var menuBarSymbol: String {
-        guard preferences.isEnabled else { return "headphones.slash" }
-        if controller.isDictating { return "waveform" }
-        return controller.isDeviceConnected ? "headphones" : "headphones.slash"
+        AppStatus(
+            isEnabled: preferences.isEnabled,
+            isDeviceConnected: controller.isDeviceConnected,
+            isDictating: controller.isDictating
+        ).symbolName
     }
 }
 

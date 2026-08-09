@@ -134,6 +134,48 @@ Caps Lock is excluded on purpose: it latches, so it cannot be held.
 - **Permissions are front-loaded into a setup window**, not buried in settings.
   Without them the app silently does nothing, which is the worst failure mode.
 
+## Interface
+
+Two layers of glass, and the order is not optional. `WindowBackdrop`
+(`NSVisualEffectView`, `.underWindowBackground`, `.behindWindow`) is the only
+thing that can sample the desktop; SwiftUI's own materials blur what is behind
+them *inside* the window, which over an opaque window means blurring nothing.
+It only works because `HostedWindowController` sets `isOpaque = false` and a
+clear `backgroundColor` — without both, AppKit paints over it and the result is
+a flat grey rectangle. Cards then use `.ultraThinMaterial` on top of that
+backdrop, which is where the depth comes from.
+
+Every window therefore needs a `WindowBackdrop` of its own. A hosted view
+without one is not merely unstyled, it is see-through.
+
+The settings window is a header over named sections of grouped rows, which is
+the shape of a System Settings pane. Earlier attempts floated shadowed cards
+with a white gradient rim — the house style of every glassmorphism template
+going, and it read as exactly that. The vibrancy does the work; a box only has
+to group the rows sitting on it. The header is washed with
+`Color.accentColor`, so it picks up whatever accent the Mac is set to rather
+than a colour PodTap invented.
+
+Two more rules keep the window sparse:
+
+- **Nothing explains itself in prose.** The setup flow is where PodTap teaches.
+  A caption under every group turned the window into a leaflet — the reason a
+  permission is wanted lives in a `.help` tooltip instead.
+- **Permissions only appear while they are missing.** Two rows reading
+  "Granted" are noise for the entire life of the app. Once they are in effect
+  the group disappears; the status pill is what says everything is fine.
+
+`Resources/GitHubMark.png` is GitHub's own mark (Octicons, MIT), committed
+rather than rendered at build time for the same reason as the app icon. Note
+for regenerating it: `qlmanage` rasterises SVG onto an **opaque white** canvas,
+so its output used as a template image paints a filled grey square. The
+committed file was rebuilt as a real mask, taking alpha from pixel darkness,
+which for a black-on-white glyph reproduces the coverage exactly.
+
+`AppStatus` in `GestureCore` is the single source for "what is PodTap doing" —
+the menu bar symbol and the settings pill both derive from it, so they cannot
+drift apart. It is pure, so the precedence between its states is tested.
+
 ## Windows
 
 **Do not use SwiftUI's `Settings` scene.** In an accessory app it silently does

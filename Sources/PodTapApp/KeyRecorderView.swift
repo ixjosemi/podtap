@@ -23,7 +23,7 @@ struct KeyRecorderView: View {
             Button(action: toggleRecording) {
                 Text(label)
                     .font(.system(.body, design: .rounded))
-                    .frame(minWidth: 150)
+                    .frame(minWidth: 96)
                     .padding(.vertical, 2)
             }
             .buttonStyle(.bordered)
@@ -39,6 +39,9 @@ struct KeyRecorderView: View {
                     .foregroundStyle(.orange)
             }
         }
+        // Sized by its own content: inside a settings row it would otherwise
+        // absorb every spare point and stretch across the card.
+        .fixedSize()
         .onDisappear { recorder.cancel() }
     }
 

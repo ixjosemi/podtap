@@ -26,12 +26,15 @@ struct OnboardingView: View {
                 .padding(.horizontal, 40)
                 .padding(.top, 36)
 
-            Divider()
+            Divider().opacity(0.5)
             footer
                 .padding(.horizontal, 24)
                 .padding(.vertical, 16)
         }
         .frame(width: 580, height: 520)
+        // The window is non-opaque so the glass can work; without a backdrop
+        // it would simply be see-through.
+        .background(WindowBackdrop().ignoresSafeArea())
         .onReceive(permissionTimer) { _ in permissionRefresh = Date() }
     }
 
@@ -129,7 +132,7 @@ struct OnboardingView: View {
                 KeyRecorderView(combination: $preferences.outputCombination)
             }
             .padding(16)
-            .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 10))
+            .glassCard(cornerRadius: 12)
 
             Label(
                 "Set this same key as the shortcut in your dictation app.",
@@ -257,7 +260,7 @@ private struct GestureRow: View {
             Spacer()
         }
         .padding(14)
-        .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 10))
+        .glassCard(cornerRadius: 12)
     }
 }
 
@@ -287,10 +290,10 @@ private struct PermissionCard: View {
             if granted {
                 Text("Granted").foregroundStyle(.green).fontWeight(.medium)
             } else {
-                PermissionActions(permission: permission)
+                PermissionActions(permission: permission, showsRecoveryOptions: true)
             }
         }
         .padding(14)
-        .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 10))
+        .glassCard(cornerRadius: 12)
     }
 }

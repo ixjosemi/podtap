@@ -142,6 +142,10 @@ enum SystemPermission: CaseIterable, Identifiable {
 /// settings so the recovery path cannot drift between the two.
 struct PermissionActions: View {
     let permission: SystemPermission
+    /// Settings shows the one action worth taking. Setup is where PodTap
+    /// teaches, and the only place with room to spell out the two ways of
+    /// recovering when granting does not take.
+    let showsRecoveryOptions: Bool
 
     @EnvironmentObject private var controller: AppController
 
@@ -152,16 +156,19 @@ struct PermissionActions: View {
             // the request is raising.
             Button("Grant…") { permission.request() }
                 .buttonStyle(.borderedProminent)
+                .controlSize(.small)
 
-            Button("Open System Settings") { permission.openSystemSettings() }
-                .buttonStyle(.link)
-                .font(.caption)
-
-            if permission.isResolvedByRelaunch {
-                Button("Quit & Reopen") { controller.relaunch() }
+            if showsRecoveryOptions {
+                Button("Open System Settings") { permission.openSystemSettings() }
                     .buttonStyle(.link)
                     .font(.caption)
-                    .help("Already enabled it? macOS only notices after PodTap restarts.")
+
+                if permission.isResolvedByRelaunch {
+                    Button("Quit & Reopen") { controller.relaunch() }
+                        .buttonStyle(.link)
+                        .font(.caption)
+                        .help("Already enabled it? macOS only notices after PodTap restarts.")
+                }
             }
         }
     }

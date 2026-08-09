@@ -63,6 +63,10 @@ mkdir -p "$contents/MacOS" "$contents/Resources"
 
 cp "$binary" "$contents/MacOS/PodTap"
 cp "Resources/AppIcon.icns" "$contents/Resources/AppIcon.icns"
+# GitHub's own mark, for the link in the footer. Committed rather than rendered
+# at build time for the same reason as the app icon: rasterising it needs a
+# window server. Octicons, MIT.
+cp "Resources/GitHubMark.png" "$contents/Resources/GitHubMark.png"
 
 sed -e "s/__VERSION__/$VERSION/" -e "s/__BUILD__/$BUILD/" \
 	Resources/Info.plist >"$contents/Info.plist"

@@ -28,7 +28,15 @@ final class HostedWindowController {
             defer: false
         )
         window.title = title
+        // The content runs to the top edge and supplies its own header, so the
+        // title bar is left as nothing but the traffic lights.
         window.titlebarAppearsTransparent = true
+        window.titleVisibility = .hidden
+        // Without both of these AppKit paints an opaque background over the
+        // window, and `WindowBackdrop` blurs a desktop nobody can see.
+        window.isOpaque = false
+        window.backgroundColor = .clear
+        // There is no visible title bar left to drag by.
         window.isMovableByWindowBackground = true
         window.contentView = hostingView
         // Closing must not deallocate it: the window is reopened on demand and
