@@ -83,8 +83,18 @@ jobs:
 
           ## What it does
 
-          - **Short tap** on the EarPods remote button: play/pause, unchanged.
-          - **Press and hold**: holds the key you chose, releases it when you let go.
+          Turns the EarPods remote button into a dictation switch.
+
+          - **Press once**: PodTap holds the key you chose down.
+          - **Talk**, with the button free.
+          - **Press again**: the key comes up and dictation ends.
+
+          The button no longer sends play/pause — it belongs to dictation now,
+          and quitting PodTap hands it straight back.
+
+          Holding the button is deliberately not the gesture: these EarPods mute
+          their own microphone for as long as the button is pressed, so
+          push-to-talk would record silence.
 
           Wired USB-C EarPods only. Universal binary (Apple Silicon and Intel).
 
