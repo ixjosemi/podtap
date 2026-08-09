@@ -2,18 +2,18 @@ import AppKit
 import CoreGraphics
 import Foundation
 
-/// Sintetiza en el sistema los eventos que PodTap debe producir.
+/// Synthesises the events PodTap must produce on the system.
 ///
-/// Dos caminos muy distintos conviven aquí:
+/// Two very different paths live here:
 ///
-/// - La **tecla configurable** usa `CGEvent`, API pública y estable.
-/// - El **play/pause** no tiene equivalente público. Al secuestrar el
-///   dispositivo HID, el evento original deja de existir, así que hay que
-///   reconstruirlo a mano con un `NSEvent.systemDefined` y los valores mágicos
-///   que macOS espera. Es la única deuda no documentada del proyecto y está
-///   deliberadamente confinada a este fichero.
+/// - The **configurable key** uses `CGEvent`, public and stable API.
+/// - **Play/pause** has no public equivalent. Seizing the HID device means the
+///   original event stops existing, so it has to be rebuilt by hand with an
+///   `NSEvent.systemDefined` carrying the magic values macOS expects. This is
+///   the project's only undocumented dependency, deliberately confined to this
+///   one file.
 public final class KeyEmitter {
-    /// `NX_KEYTYPE_PLAY`, de IOKit/hidsystem/ev_keymap.h.
+    /// `NX_KEYTYPE_PLAY`, from IOKit/hidsystem/ev_keymap.h.
     private static let mediaKeyPlay: Int32 = 16
 
     private let eventSource: CGEventSource?
@@ -22,12 +22,12 @@ public final class KeyEmitter {
         eventSource = CGEventSource(stateID: .hidSystemState)
     }
 
-    /// Baja la tecla configurada y la deja pulsada.
+    /// Presses the configured key and leaves it held down.
     public func pressDown(_ combination: KeyCombination) {
         postKey(combination, keyDown: true)
     }
 
-    /// Suelta la tecla configurada.
+    /// Releases the configured key.
     public func releaseUp(_ combination: KeyCombination) {
         postKey(combination, keyDown: false)
     }
@@ -45,17 +45,17 @@ public final class KeyEmitter {
         event.post(tap: .cghidEventTap)
     }
 
-    /// Reemite un play/pause completo (pulsar y soltar) al sistema.
+    /// Re-emits a full play/pause press and release to the system.
     public func tapPlayPause() {
         postMediaKey(down: true)
         postMediaKey(down: false)
     }
 
     private func postMediaKey(down: Bool) {
-        // Los flags 0xA00/0xB00 y el bitfield de data1 no están documentados:
-        // son el contrato de facto que usan todas las apps de media keys de
-        // macOS. Si Apple los cambia, se rompe el passthrough de play/pause,
-        // no la captura del botón.
+        // The 0xA00/0xB00 flags and the data1 bitfield are undocumented: they
+        // are the de facto contract every macOS media-key app relies on. If
+        // Apple changes them, play/pause passthrough breaks — button capture
+        // does not.
         let flags = NSEvent.ModifierFlags(rawValue: down ? 0xA00 : 0xB00)
         let state: Int = down ? 0xA : 0xB
         let data1 = Int((Self.mediaKeyPlay << 16) | Int32(state << 8))

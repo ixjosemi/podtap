@@ -2,10 +2,11 @@ import AppKit
 import KeyOutput
 import SwiftUI
 
-/// Campo para capturar la combinación que PodTap enviará.
+/// Field that captures the combination PodTap will send.
 ///
-/// Mientras graba instala un monitor local de teclado y **se traga** el evento,
-/// para que la pulsación no acabe escribiéndose en la propia ventana.
+/// While recording it installs a local keyboard monitor and **swallows** the
+/// event, so the keystroke never lands in the window itself — otherwise
+/// recording ⌘Q would quit the app on the spot.
 struct KeyRecorderView: View {
     @Binding var combination: KeyCombination
 
@@ -14,14 +15,14 @@ struct KeyRecorderView: View {
 
     var body: some View {
         Button(action: toggleRecording) {
-            Text(isRecording ? "Pulsa una combinación…" : combination.displayName)
+            Text(isRecording ? "Press a combination…" : combination.displayName)
                 .font(.system(.body, design: .rounded))
                 .frame(minWidth: 140)
                 .padding(.vertical, 2)
         }
         .buttonStyle(.bordered)
         .tint(isRecording ? .accentColor : nil)
-        .help("Elige la tecla que PodTap mantendrá pulsada mientras mantengas el botón del mando.")
+        .help("The key PodTap holds down while you hold the remote button.")
         .onDisappear(perform: stopRecording)
     }
 
@@ -32,7 +33,8 @@ struct KeyRecorderView: View {
     private func startRecording() {
         isRecording = true
         eventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-            // Escape cancela sin cambiar nada, que es lo que espera cualquiera.
+            // Escape cancels without changing anything, which is what everyone
+            // expects from a shortcut recorder.
             if event.keyCode == 53 {
                 stopRecording()
                 return nil

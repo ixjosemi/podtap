@@ -1,118 +1,164 @@
+<p align="center">
+  <img src="Design/hero.svg" alt="PodTap — turn the EarPods remote button into any macOS key" width="100%">
+</p>
+
+<p align="center">
+  <a href="https://github.com/ixjosemi/podtap/releases"><img alt="Release" src="https://img.shields.io/github/v/release/ixjosemi/podtap?style=flat-square&color=7C3AED"></a>
+  <img alt="Platform" src="https://img.shields.io/badge/macOS-14%2B-4F46E5?style=flat-square">
+  <img alt="Swift" src="https://img.shields.io/badge/Swift-6.0-DB2777?style=flat-square">
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-22D3EE?style=flat-square"></a>
+</p>
+
 # PodTap
 
-Convierte el botón del mando de los EarPods USB-C de Apple en una tecla
-configurable de macOS, conservando el play/pause.
+**PodTap turns the button on your wired Apple EarPods into any macOS key you
+want — while keeping play/pause exactly where it was.**
 
-- **Toque corto** → play/pause, como siempre.
-- **Mantener** → mantiene pulsada la tecla que configures, y la suelta al
-  soltar el botón.
+- **Short tap** → play/pause, unchanged.
+- **Press and hold** → holds down the key you chose, and releases it when you
+  let go.
 
-El caso de uso original es el dictado por voz: apps como Wispr Flow, Superwhisper
-o el dictado nativo funcionan con *push-to-talk*, y mantener un botón del cable
-es más cómodo que buscar una tecla.
+The button becomes a proper push-to-talk trigger. Hold it, talk, let go. It
+works with Wispr Flow, Superwhisper, macOS Dictation, Discord, Slack huddles, or
+anything else driven by a held key.
 
-Todo se configura desde la interfaz: la tecla, el umbral y los permisos. No hay
-que tocar código ni ficheros de configuración.
+Everything is configured in the app. There is no config file, no scripting, and
+nothing to compile.
 
-## Instalación
+---
 
-Descarga la app desde
-[Releases](https://github.com/ixjosemi/podtap/releases), o compílala:
+## Why this exists
+
+There was no way to do this. The
+[Karabiner-Elements issue asking for it](https://github.com/pqrs-org/Karabiner-Elements/issues/2398)
+has been open for years with no resolution. Every existing tool in this space —
+[MediaKeyTap](https://github.com/the0neyouseek/MediaKeyTap),
+[mac-media-keys](https://github.com/rayhatfield/mac-media-keys),
+[mac-bt-headset-fix](https://github.com/jguice/mac-bt-headset-fix) — forwards
+media keys to a *player*. None of them let you remap the button to an arbitrary
+key.
+
+## Install
+
+Download the `.dmg` from [Releases](https://github.com/ixjosemi/podtap/releases)
+and drag PodTap to Applications.
+
+Because the app is not notarised yet, the first launch needs **right-click →
+Open** instead of a double-click.
+
+On first run, PodTap opens a short setup window that walks you through the two
+required permissions and lets you pick your key. Nothing works until those
+permissions are granted, so setup asks for them up front rather than failing
+silently later.
+
+| Permission | Why it is needed |
+|---|---|
+| **Input Monitoring** | To read the button on the EarPods remote. |
+| **Accessibility** | To send the key you chose to whatever app you are typing in. |
+
+Then set the same key as the shortcut in your dictation app, and you are done.
+
+### Build from source
 
 ```sh
 git clone https://github.com/ixjosemi/podtap.git
 cd podtap
-./Scripts/build-app.sh
-cp -R build/PodTap.app /Applications/
+./Scripts/build-app.sh          # produces build/PodTap.app
+./Scripts/build-dmg.sh          # produces build/PodTap-<version>.dmg
 ```
 
-Como todavía no está notarizada, la primera vez hay que abrirla con **clic
-derecho → Abrir**.
+## Where PodTap lives
 
-Al arrancar, PodTap vive en la barra de menús. Abre **Ajustes…** y concede los
-dos permisos que pide:
+PodTap never appears in the Dock or the app switcher. By default it sits in the
+menu bar, where the icon reflects state at a glance: ready, recording, or no
+EarPods connected.
 
-| Permiso | Para qué |
-|---|---|
-| Monitorización de entrada | Leer el botón del mando. |
-| Accesibilidad | Enviar la tecla configurada a la app en la que escribes. |
+If you would rather not see it at all, turn off **Show icon in the menu bar** in
+Settings and it becomes a pure background agent. Opening PodTap again from
+Finder brings the settings window back, so hiding the icon is never a one-way
+door.
 
-Después elige la tecla en **Tecla al mantener** y configura esa misma tecla como
-atajo en tu app de dictado.
+## How it works
 
-## Por qué existe
+macOS presents the remote button as a play/pause toggle, but that is
+information being thrown away higher up the stack. Underneath, USB-C EarPods are
+an ordinary HID device publishing the `PlayPause` usage (`0x00CD`) on the
+Consumer Page (`0x0C`), with genuine press and release transitions.
 
-No había forma de hacer esto. El
-[issue #2398 de Karabiner-Elements](https://github.com/pqrs-org/Karabiner-Elements/issues/2398)
-lleva años abierto pidiendo exactamente esta funcionalidad. Las apps existentes
-del ecosistema —[MediaKeyTap](https://github.com/the0neyouseek/MediaKeyTap),
-[mac-media-keys](https://github.com/rayhatfield/mac-media-keys),
-[mac-bt-headset-fix](https://github.com/jguice/mac-bt-headset-fix)— reenvían las
-media keys a un reproductor, pero ninguna permite remapear el botón a una tecla
-arbitraria.
+PodTap opens that device with `kIOHIDOptionsTypeSeizeDevice`, which stops the
+event from reaching the system at all, and then decides what to do based on how
+long the press lasted. Because the original event no longer exists, the
+play/pause for a short tap is synthesised back.
 
-## Cómo funciona
+Seizing is not optional. macOS synthesises play/pause on button *down*, so by
+the time a `CGEventTap` could tell a hold from a tap, the music has already
+paused. Only intercepting below that layer is early enough.
 
-macOS presenta el botón como un toggle de play/pause, pero eso es una pérdida de
-información introducida en una capa alta. Por debajo, los EarPods USB-C son un
-dispositivo HID normal que publica en la Consumer Page (`0x0C`) el usage
-`PlayPause` (`0x00CD`) con transiciones reales de valor 1/0.
+### Measurements from real hardware
 
-PodTap abre ese dispositivo con `kIOHIDOptionsTypeSeizeDevice`, lo que impide
-que el evento llegue al sistema, y decide qué hacer según cuánto dure la
-pulsación. Como el evento original ya no existe, el play/pause del toque corto
-se sintetiza de vuelta.
+Captured with the diagnostic tools in [`tools/`](tools), on USB-C EarPods
+(`vid=0x05AC pid=0x110B`) running macOS 26.5:
 
-### Mediciones sobre hardware real
-
-Tomadas con los spikes de diagnóstico, sobre EarPods USB-C
-(`vid=0x05AC pid=0x110B`) en macOS 26.5:
-
-| | n | rango | mediana |
+| | n | range | median |
 |---|---|---|---|
-| Toques | 15 | 79 – 231 ms | ~111 ms |
-| Mantenidos | 2 | 1774 – 1947 ms | — |
+| Taps | 15 | 79 – 231 ms | ~111 ms |
+| Holds | 2 | 1774 – 1947 ms | — |
 
-El hueco entre ambos grupos es lo bastante amplio como para que un umbral de
-300 ms clasifique correctamente. Verificado además que el *seize* bloquea de
-verdad: con música sonando, 17 pulsaciones no produjeron ni una pausa.
+The gap between the two groups is wide enough that a 300 ms threshold
+classifies every sample correctly. Seizing was also confirmed to genuinely
+block: with music playing, 17 presses produced not a single pause.
 
-## Arquitectura
+The threshold is adjustable in Settings, since how long *you* hold a button is
+personal.
+
+## Architecture
 
 ```
 Sources/
-  GestureCore/    Lógica pura de clasificación. Sin IOKit ni CoreGraphics.
-  HIDInput/       IOHIDManager, seize exclusivo, hotplug.
-  KeyOutput/      Síntesis de CGEvent y de play/pause.
-  PodTapApp/      Barra de menús, ajustes, permisos.
+  GestureCore/    Pure classification logic. No IOKit, no CoreGraphics.
+  HIDInput/       IOHIDManager, exclusive seize, hotplug handling.
+  KeyOutput/      CGEvent and play/pause synthesis.
+  PodTapApp/      Menu bar, setup flow, settings, permissions.
 tests/
   GestureCoreTests/
   KeyOutputTests/
+tools/            Standalone HID probes used to derive the numbers above.
 ```
 
-`GestureCore` no tiene dependencias del sistema y recibe el tiempo inyectado, así
-que toda la máquina de estados se testea sin hardware ni relojes reales.
+`GestureCore` has no system dependencies and takes its clock by injection, so
+the entire state machine is tested without hardware or real time.
 
-## Desarrollo
+The one piece of undocumented API in the project is play/pause synthesis, which
+needs `NSEvent.systemDefined` with the magic `0xa00`/`0xb00` flags. It is
+deliberately confined to a single file: if Apple ever changes it, play/pause
+passthrough breaks — button capture does not.
+
+## Development
 
 ```sh
 swift build
 swift test
 ```
 
-Si `swift test` falla con `no such module 'XCTest'`, tu `xcode-select` apunta a
-Command Line Tools en vez de a Xcode:
+If `swift test` fails with `no such module 'XCTest'`, your `xcode-select` points
+at the Command Line Tools rather than Xcode:
 
 ```sh
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test
 ```
 
-## Alcance
+Rebuilding changes the ad-hoc signature, so macOS treats the result as a new app
+and asks for both permissions again. A notarised build with a stable identity
+will fix that.
 
-Solo **EarPods USB-C con cable**. Los AirPods quedan fuera a propósito: llegan
-por AVRCP sobre Bluetooth, no exponen un dispositivo HID propio y no se pueden
-secuestrar por esta vía.
+## Scope
 
-## Licencia
+Wired **USB-C EarPods only**.
+
+AirPods are deliberately out of scope: they arrive over Bluetooth AVRCP, expose
+no HID device of their own, and cannot be seized this way. Support would need a
+completely different and far less reliable mechanism.
+
+## License
 
 MIT.

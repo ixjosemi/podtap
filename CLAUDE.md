@@ -1,75 +1,89 @@
 # PodTap
 
-Remapea el botón del mando de los EarPods USB-C a una tecla configurable,
-conservando el play/pause en el toque corto.
+Remaps the USB-C EarPods remote button to a configurable key, keeping
+play/pause on a short tap.
 
-## Hechos verificados sobre hardware
+## Hardware facts, already verified
 
-No re-investigar esto, ya está medido sobre EarPods USB-C reales en macOS 26.5:
+Do not re-investigate these. Measured on real USB-C EarPods, macOS 26.5:
 
-- Dispositivo: `vid=0x05AC pid=0x110B`, transport USB. Expone **dos** interfaces
-  bajo el mismo vid/pid: Consumer Page (`0x0C`) y una vendor-defined (`0xFF00`).
-- El botón emite usage `PlayPause` (`0x00CD`) con transiciones reales 1/0, es
-  decir con **duración de pulsación**. macOS colapsa ese par en un toggle en una
-  capa superior; a nivel HID la información está completa.
-- Existe un dispositivo virtual `Headset` (transport `Audio`, también Consumer
-  Page) que **no emite nada** para este botón. Irrelevante para el proyecto.
-- La doble y triple pulsación **no** generan usages distintos: son pares
-  DOWN/UP repetidos, separados por 109-171 ms.
-- Duraciones medidas: toques 79-231 ms (mediana ~111 ms), mantenidos
-  1774-1947 ms.
-- `kIOHIDOptionsTypeSeizeDevice` se concede y **bloquea de verdad**: con música
-  sonando, 17 pulsaciones no produjeron ninguna pausa.
+- Device: `vid=0x05AC pid=0x110B`, USB transport. Publishes **two** interfaces
+  under the same vid/pid: Consumer Page (`0x0C`) and a vendor-defined one
+  (`0xFF00`).
+- The button emits usage `PlayPause` (`0x00CD`) with genuine 1/0 transitions —
+  that is, with **press duration**. macOS collapses the pair into a toggle
+  higher up; at the HID layer the information is intact.
+- There is a virtual `Headset` device (transport `Audio`, also Consumer Page)
+  that **emits nothing** for this button. Irrelevant to the project.
+- Double and triple presses do **not** produce distinct usages: they are
+  repeated DOWN/UP pairs separated by 109-171 ms.
+- Measured durations: taps 79-231 ms (median ~111 ms), holds 1774-1947 ms.
+- `kIOHIDOptionsTypeSeizeDevice` is granted and **genuinely blocks**: with music
+  playing, 17 presses produced no pause.
 
-## Decisiones de diseño
+## Design decisions
 
-- **Toque corto = play/pause reemitido, mantener = tecla configurable.** El
-  play/pause se decide al soltar, así que solo se retrasa lo que dure el toque.
-- **El dictado arranca al cruzar el umbral, no al soltar.** Es lo que hace que
-  sea push-to-talk real.
-- **La tecla de salida es configurable desde v1.** La app no asume nada sobre
-  Wispr Flow ni sobre ninguna otra app concreta.
-- **Solo EarPods con cable.** Los AirPods llegan por AVRCP sobre Bluetooth, no
-  exponen HID propio y no se pueden secuestrar así. Fuera de alcance.
-- **Entrada por HID puro, sin APIs no documentadas.** La única excepción es la
-  *salida*: reemitir play/pause obliga a usar `NSEvent.systemDefined` con los
-  flags mágicos `0xa00`/`0xb00`. Esa fragilidad queda confinada a `KeyOutput`.
+- **Short tap re-emits play/pause, hold sends the configured key.** Play/pause
+  is decided on release, so it is delayed only by the length of the tap itself.
+- **Dictation starts when the threshold is crossed, not on release.** That is
+  what makes it real push-to-talk.
+- **The output key is configurable from v1.** The app assumes nothing about
+  Wispr Flow or any other specific app.
+- **Wired EarPods only.** AirPods arrive over Bluetooth AVRCP, expose no HID
+  device of their own, and cannot be seized this way. Out of scope.
+- **Input via pure HID, no undocumented API.** The sole exception is *output*:
+  re-emitting play/pause requires `NSEvent.systemDefined` with the magic
+  `0xa00`/`0xb00` flags. That fragility is confined to `KeyOutput`.
+- **Never in the Dock.** `LSUIElement` is set. The menu bar icon is optional;
+  with it hidden, reopening the app from Finder is the way back to settings,
+  handled via `applicationShouldHandleReopen`.
+- **Permissions are front-loaded into a setup window**, not buried in settings.
+  Without them the app silently does nothing, which is the worst failure mode.
 
-## Convenciones
+## Conventions
 
-- `GestureCore` no importa IOKit ni CoreGraphics y recibe el tiempo inyectado.
-  Cualquier lógica de decisión vive ahí para poder testearse sin hardware.
-- Tests en `tests/`, no en `Tests/`. Las rutas están declaradas explícitamente
-  en `Package.swift`.
-- Los helpers de test no pueden llamarse `release`: colisiona con el método de
-  `NSObject` que hereda `XCTestCase`. Se usan `down`/`up`.
+- Everything user-facing and every source comment is in **English**.
+- `GestureCore` imports neither IOKit nor CoreGraphics and takes its clock by
+  injection. All decision logic lives there so it can be tested without
+  hardware.
+- Tests live in `tests/`, not `Tests/`. Paths are declared explicitly in
+  `Package.swift`.
+- Test helpers cannot be named `release`: it collides with the `NSObject`
+  method `XCTestCase` inherits. Use `down`/`up`.
+- Targets touching IOKit/AppKit build in Swift 5 language mode; `GestureCore`
+  stays on Swift 6.
 
-## Entorno
+## Environment
 
-Xcode está instalado pero `xcode-select` apunta a Command Line Tools, que no
-traen XCTest. Para los tests:
+Xcode is installed but `xcode-select` points at the Command Line Tools, which
+ship no XCTest. For tests:
 
 ```sh
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test
 ```
 
-## Estado
+`Scripts/build-app.sh` handles this automatically.
 
-- [x] `GestureCore`: tipos, `handle`, `tick`, `interrupt`. 13 tests.
-- [x] `KeyOutput`: `KeyCombination` y `KeyEmitter`. 5 tests.
-- [x] `HIDInput`: seize exclusivo del interfaz Consumer, hotplug.
-- [x] `PodTapApp`: barra de menús, ajustes, permisos, grabador de atajo.
-- [x] Empaquetado `.app` con `LSUIElement` y firma ad-hoc.
-- [ ] Verificación end-to-end sobre hardware con permisos concedidos.
-- [ ] Arranque al iniciar sesión (`SMAppService`).
-- [ ] Icono propio, workflow de CI y release con binario adjunto.
+## Packaging
 
-## Empaquetado
+- `Scripts/make-icon.sh` renders `Design/icon.svg` into `AppIcon.icns`. There is
+  no SVG rasteriser in a stock macOS install, so it goes through `qlmanage`
+  (WebKit) for the 1024px master, then `sips` and `iconutil`.
+- `Scripts/build-app.sh` assembles the `.app` that SwiftPM cannot produce.
+- `Scripts/build-dmg.sh` produces the drag-to-install disk image.
 
-`swift build` produce un ejecutable suelto; la `.app` la ensambla
-`Scripts/build-app.sh` (Info.plist con `LSUIElement`, más firma ad-hoc).
+The ad-hoc signature matters: without any signature macOS will not reliably
+grant Accessibility. But its `cdhash` changes on every build, so **permissions
+must be re-granted after each rebuild**. Notarisation with a stable identity
+will fix this.
 
-La firma ad-hoc importa: sin ninguna firma, macOS no concede permisos de
-Accesibilidad de forma fiable. Aun así el `cdhash` cambia en cada compilación,
-así que **tras recompilar hay que volver a conceder los permisos**. Se resolverá
-con notarización y una identidad estable.
+## Status
+
+- [x] `GestureCore`: `handle`, `tick`, `interrupt`. 13 tests.
+- [x] `KeyOutput`: `KeyCombination`, `KeyEmitter`. 5 tests.
+- [x] `HIDInput`: exclusive seize of the Consumer interface, hotplug.
+- [x] `PodTapApp`: menu bar, settings, key recorder, first-run setup flow.
+- [x] Icon and README hero as SVG; `.icns`, `.app` and `.dmg` pipelines.
+- [ ] End-to-end verification on hardware with permissions granted.
+- [ ] Launch at login (`SMAppService`).
+- [ ] Notarisation, CI workflow, release with attached binary.

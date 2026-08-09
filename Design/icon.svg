@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <title>PodTap</title>
+  <defs>
+    <linearGradient id="backdrop" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#4F46E5"/>
+      <stop offset="45%" stop-color="#7C3AED"/>
+      <stop offset="100%" stop-color="#DB2777"/>
+    </linearGradient>
+
+    <radialGradient id="warmBlob" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FB7185" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#FB7185" stop-opacity="0"/>
+    </radialGradient>
+
+    <radialGradient id="coolBlob" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#22D3EE" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#22D3EE" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- La lámina de cristal: más opaca arriba, donde recibiría la luz. -->
+    <linearGradient id="glassFace" x1="0.1" y1="0" x2="0.9" y2="1">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.55"/>
+      <stop offset="55%" stop-color="#FFFFFF" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.10"/>
+    </linearGradient>
+
+    <linearGradient id="glassEdge" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.9"/>
+      <stop offset="50%" stop-color="#FFFFFF" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.6"/>
+    </linearGradient>
+
+    <linearGradient id="budBody" x1="0.2" y1="0" x2="0.8" y2="1">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.98"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.82"/>
+    </linearGradient>
+
+    <filter id="softBlur" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="70"/>
+    </filter>
+
+    <filter id="dropShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="16" stdDeviation="26" flood-color="#1E1B4B" flood-opacity="0.35"/>
+    </filter>
+
+    <clipPath id="squircle">
+      <rect x="0" y="0" width="1024" height="1024" rx="229" ry="229"/>
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#squircle)">
+    <rect width="1024" height="1024" fill="url(#backdrop)"/>
+
+    <!-- Manchas de color desenfocadas: dan al cristal algo que refractar. -->
+    <circle cx="200" cy="180" r="330" fill="url(#coolBlob)" filter="url(#softBlur)"/>
+    <circle cx="880" cy="820" r="360" fill="url(#warmBlob)" filter="url(#softBlur)"/>
+    <circle cx="820" cy="150" r="200" fill="#FDE68A" opacity="0.45" filter="url(#softBlur)"/>
+
+    <!-- Lámina de cristal esmerilado, girada para dar profundidad. -->
+    <g transform="rotate(-12 512 512)" filter="url(#dropShadow)">
+      <rect x="196" y="256" width="632" height="512" rx="112" ry="112"
+            fill="url(#glassFace)" stroke="url(#glassEdge)" stroke-width="4"/>
+      <!-- Reflejo especular en el borde superior. -->
+      <path d="M 250 380 Q 300 300 400 292 L 700 292 Q 780 296 800 350"
+            fill="none" stroke="#FFFFFF" stroke-opacity="0.5" stroke-width="6"
+            stroke-linecap="round"/>
+    </g>
+
+    <!-- Auricular con cable. Las ondas salen del mando, que es el botón que
+         PodTap intercepta: es ahí donde ocurre el gesto. -->
+    <g transform="translate(536 528) scale(0.92)">
+      <!-- Auricular, arriba a la izquierda. -->
+      <g transform="translate(-196 -212) rotate(-20)">
+        <ellipse cx="0" cy="0" rx="116" ry="128" fill="url(#budBody)"/>
+        <ellipse cx="4" cy="-6" rx="38" ry="45" fill="#4C1D95" opacity="0.17"/>
+        <ellipse cx="-44" cy="-58" rx="30" ry="20" fill="#FFFFFF" opacity="0.75"
+                 transform="rotate(-28 -44 -58)"/>
+        <rect x="-40" y="96" width="80" height="146" rx="40" ry="40"
+              fill="url(#budBody)"/>
+      </g>
+
+      <!-- Cable hasta el mando. -->
+      <path d="M -168 -22 C -132 96 -60 154 -6 186"
+            fill="none" stroke="#FFFFFF" stroke-opacity="0.9"
+            stroke-width="30" stroke-linecap="round"/>
+
+      <!-- Mando del cable. -->
+      <g transform="rotate(28 24 214)">
+        <rect x="-16" y="146" width="80" height="164" rx="40" ry="40"
+              fill="#FFFFFF" opacity="0.98"/>
+        <rect x="4" y="182" width="40" height="8" rx="4"
+              fill="#4C1D95" opacity="0.28"/>
+        <rect x="4" y="266" width="40" height="8" rx="4"
+              fill="#4C1D95" opacity="0.28"/>
+      </g>
+
+      <!-- Ondas concéntricas centradas en el mando: mantener pulsado. -->
+      <g fill="none" stroke="#FFFFFF" stroke-linecap="round" stroke-width="26"
+         transform="translate(24 214)">
+        <path d="M 96 -74 A 122 122 0 0 1 96 74" stroke-opacity="0.9"/>
+        <path d="M 168 -126 A 208 208 0 0 1 168 126" stroke-opacity="0.55"/>
+        <path d="M 240 -178 A 296 296 0 0 1 240 178" stroke-opacity="0.28"/>
+      </g>
+    </g>
+  </g>
+</svg>

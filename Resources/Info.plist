@@ -10,6 +10,8 @@
 	<string>com.github.ixjosemi.podtap</string>
 	<key>CFBundleExecutable</key>
 	<string>PodTap</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -18,8 +20,7 @@
 	<string>__BUILD__</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
-	<!-- Solo barra de menús: PodTap no debe aparecer en el Dock ni en el
-	     conmutador de apps. -->
+	<!-- Menu bar only: PodTap must not appear in the Dock or the app switcher. -->
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSHumanReadableCopyright</key>

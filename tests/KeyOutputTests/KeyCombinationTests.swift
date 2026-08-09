@@ -17,12 +17,12 @@ final class KeyCombinationTests: XCTestCase {
                 | CGEventFlags.maskAlternate.rawValue
         )
 
-        XCTAssertEqual(combination.displayName, "⌃⌥⇧⌘Espacio")
+        XCTAssertEqual(combination.displayName, "⌃⌥⇧⌘Space")
     }
 
     func testUnsupportedModifiersAreDiscarded() {
-        // Bloq Mayús y la tecla de función no son atajos válidos y no deben
-        // acabar guardados en la configuración.
+        // Caps Lock and Fn are not valid shortcut modifiers and must not end up
+        // stored in the configuration.
         let combination = KeyCombination(
             keyCode: 0,
             modifierFlags: CGEventFlags.maskAlphaShift.rawValue
@@ -34,7 +34,7 @@ final class KeyCombinationTests: XCTestCase {
     }
 
     func testUnknownKeyCodeFallsBackToItsNumber() {
-        XCTAssertEqual(KeyCombination(keyCode: 200).displayName, "Tecla 200")
+        XCTAssertEqual(KeyCombination(keyCode: 200).displayName, "Key 200")
     }
 
     func testRoundTripsThroughJSON() throws {

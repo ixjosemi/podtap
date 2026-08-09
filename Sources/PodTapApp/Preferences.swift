@@ -2,20 +2,22 @@ import Foundation
 import KeyOutput
 import SwiftUI
 
-/// Preferencias del usuario, respaldadas por `UserDefaults`.
+/// User preferences, backed by `UserDefaults`.
 ///
-/// Todo lo que la app necesita saber para funcionar se configura desde la
-/// interfaz: no hay nada que editar a mano ni ningún fichero de configuración.
+/// Everything PodTap needs is configured from the interface: there is nothing
+/// to edit by hand and no configuration file to find.
 @MainActor
 final class Preferences: ObservableObject {
     private enum Key {
         static let combination = "outputKeyCombination"
         static let holdThreshold = "holdThresholdSeconds"
         static let isEnabled = "isEnabled"
+        static let showsMenuBarIcon = "showsMenuBarIcon"
+        static let hasCompletedSetup = "hasCompletedSetup"
     }
 
-    /// Rango ofrecido en la interfaz. El mínimo deja margen sobre las
-    /// pulsaciones cortas medidas en hardware real (hasta 231 ms).
+    /// Range offered in the interface. The minimum leaves headroom over the
+    /// longest taps measured on real hardware (231 ms).
     static let thresholdRange: ClosedRange<Double> = 0.25...1.0
 
     @Published var outputCombination: KeyCombination {
@@ -28,6 +30,17 @@ final class Preferences: ObservableObject {
 
     @Published var isEnabled: Bool {
         didSet { defaults.set(isEnabled, forKey: Key.isEnabled) }
+    }
+
+    /// When off, PodTap runs purely in the background. Reopening the app from
+    /// Finder brings the settings window back, so hiding the icon is never a
+    /// one-way door.
+    @Published var showsMenuBarIcon: Bool {
+        didSet { defaults.set(showsMenuBarIcon, forKey: Key.showsMenuBarIcon) }
+    }
+
+    @Published var hasCompletedSetup: Bool {
+        didSet { defaults.set(hasCompletedSetup, forKey: Key.hasCompletedSetup) }
     }
 
     private let defaults: UserDefaults
@@ -47,6 +60,8 @@ final class Preferences: ObservableObject {
         holdThreshold = storedThreshold > 0 ? storedThreshold : 0.3
 
         isEnabled = defaults.object(forKey: Key.isEnabled) as? Bool ?? true
+        showsMenuBarIcon = defaults.object(forKey: Key.showsMenuBarIcon) as? Bool ?? true
+        hasCompletedSetup = defaults.bool(forKey: Key.hasCompletedSetup)
     }
 
     private func persistCombination() {
@@ -54,7 +69,7 @@ final class Preferences: ObservableObject {
         defaults.set(encoded, forKey: Key.combination)
     }
 
-    /// Versión mostrada en la interfaz, leída del bundle.
+    /// Version shown in the interface, read from the bundle.
     var appVersion: String {
         let info = Bundle.main.infoDictionary
         let short = info?["CFBundleShortVersionString"] as? String ?? "0.0.0"

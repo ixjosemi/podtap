@@ -15,7 +15,9 @@ struct PodTapApp: App {
     }
 
     var body: some Scene {
-        MenuBarExtra {
+        // `isInserted` lets the icon be removed entirely without tearing down
+        // the app, so PodTap can run as a pure background agent.
+        MenuBarExtra(isInserted: menuBarIconInserted) {
             MenuContent(preferences: preferences)
                 .environmentObject(controller)
         } label: {
@@ -28,8 +30,21 @@ struct PodTapApp: App {
         }
     }
 
-    /// El icono comunica el estado de un vistazo: si está grabando, si está
-    /// listo, o si los EarPods no están puestos.
+    /// SwiftUI writes back to `isInserted` on every layout pass. Forwarding an
+    /// unchanged value would republish `Preferences`, re-render the scene, and
+    /// write again — an infinite loop that pins a core. No-op writes are
+    /// filtered out here so only genuine user changes propagate.
+    private var menuBarIconInserted: Binding<Bool> {
+        Binding(
+            get: { preferences.showsMenuBarIcon },
+            set: { newValue in
+                guard newValue != preferences.showsMenuBarIcon else { return }
+                preferences.showsMenuBarIcon = newValue
+            }
+        )
+    }
+
+    /// The icon carries the state at a glance: recording, ready, or no EarPods.
     private var menuBarSymbol: String {
         guard preferences.isEnabled else { return "headphones.slash" }
         if controller.isDictating { return "waveform" }
@@ -42,34 +57,51 @@ private struct MenuContent: View {
     @ObservedObject var preferences: Preferences
 
     var body: some View {
-        Text(controller.isDeviceConnected ? "EarPods conectados" : "EarPods no conectados")
+        Text(controller.isDeviceConnected ? "EarPods connected" : "EarPods not connected")
 
         if controller.isDeviceConnected && preferences.isEnabled {
-            Text("Mantén el botón para \(preferences.outputCombination.displayName)")
+            Text("Hold the button for \(preferences.outputCombination.displayName)")
         }
 
         Divider()
 
-        Toggle("Activar PodTap", isOn: $preferences.isEnabled)
+        Toggle("Enable PodTap", isOn: $preferences.isEnabled)
 
         SettingsLink {
-            Text("Ajustes…")
+            Text("Settings…")
         }
         .keyboardShortcut(",", modifiers: .command)
 
         Divider()
 
-        Button("Salir de PodTap") {
+        Button("Quit PodTap") {
             NSApplication.shared.terminate(nil)
         }
         .keyboardShortcut("q", modifiers: .command)
     }
 }
 
-/// Existe por un motivo concreto: garantizar que el dispositivo se devuelve al
-/// sistema y que ninguna tecla queda bajada al cerrar.
+/// Exists for two specific reasons: making sure the device is handed back and
+/// no key is left held down on quit, and giving a background-only PodTap a way
+/// back to its settings.
 final class AppDelegate: NSObject, NSApplicationDelegate {
     @MainActor static weak var controller: AppController?
+
+    /// Launching PodTap again while it is already running is the only route
+    /// back into the app when the menu bar icon is hidden.
+    func applicationShouldHandleReopen(
+        _ sender: NSApplication, hasVisibleWindows: Bool
+    ) -> Bool {
+        MainActor.assumeIsolated {
+            guard let controller = Self.controller else { return }
+            if controller.preferences.hasCompletedSetup {
+                controller.showSettings()
+            } else {
+                controller.showOnboarding()
+            }
+        }
+        return true
+    }
 
     func applicationWillTerminate(_ notification: Notification) {
         MainActor.assumeIsolated {

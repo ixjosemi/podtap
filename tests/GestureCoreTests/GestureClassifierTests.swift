@@ -2,15 +2,16 @@ import XCTest
 
 @testable import GestureCore
 
-/// Umbral usado en todos los tests. Los tiempos de las pulsaciones están
-/// tomados de mediciones reales sobre EarPods USB-C: toques de 79-231 ms,
-/// mantenidos por encima de 1700 ms.
+/// Threshold used across these tests. The press durations are taken from real
+/// measurements on USB-C EarPods: taps of 79-231 ms, holds beyond 1700 ms.
 private let threshold: Double = 0.3
 
 private func down(_ at: Double) -> ButtonEvent {
     ButtonEvent(phase: .pressed, timestamp: at)
 }
 
+/// Not named `release`: that collides with the `NSObject` method `XCTestCase`
+/// inherits.
 private func up(_ at: Double) -> ButtonEvent {
     ButtonEvent(phase: .released, timestamp: at)
 }
@@ -28,7 +29,7 @@ final class ShortTapTests: XCTestCase {
         var classifier = GestureClassifier(holdThreshold: threshold)
 
         _ = classifier.handle(down(0))
-        // 231 ms: el outlier real capturado en el spike sobre hardware.
+        // 231 ms: the outlier captured during hardware probing.
         XCTAssertEqual(classifier.handle(up(0.231)), [.emitPlayPause])
     }
 
@@ -92,8 +93,8 @@ final class DegenerateInputTests: XCTestCase {
 
         _ = classifier.handle(down(0))
         XCTAssertEqual(classifier.handle(down(0.1)), [])
-        // Si la segunda pulsación hubiese reiniciado el cronómetro, en t=0.3
-        // solo habrían pasado 200 ms y el dictado no arrancaría.
+        // Had the second press restarted the timer, only 200 ms would have
+        // elapsed at t=0.3 and dictation would not begin.
         XCTAssertEqual(classifier.tick(at: 0.3), [.beginDictation])
     }
 
@@ -101,8 +102,8 @@ final class DegenerateInputTests: XCTestCase {
         var classifier = GestureClassifier(holdThreshold: threshold)
 
         _ = classifier.handle(down(0))
-        // El tick nunca llegó (proceso ocupado, reloj perezoso). La duración
-        // dice que fue un mantenido: reemitir play/pause sería incorrecto.
+        // The tick never arrived (busy process, lazy clock). The duration says
+        // plainly this was a hold; re-emitting play/pause would be wrong.
         XCTAssertNotEqual(classifier.handle(up(1.8)), [.emitPlayPause])
     }
 }

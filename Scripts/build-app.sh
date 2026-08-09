@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 #
-# Construye PodTap.app a partir del ejecutable de SwiftPM.
+# Builds PodTap.app from the SwiftPM executable.
 #
-# SwiftPM no sabe producir bundles de aplicación, así que lo ensamblamos aquí:
-# es la diferencia entre un binario suelto y algo que se arrastra a
-# /Applications y aparece en la barra de menús.
+# SwiftPM cannot produce application bundles, so it is assembled here: that is
+# the difference between a loose binary and something you drag into
+# /Applications and see in the menu bar.
 
 set -euo pipefail
 
@@ -17,29 +17,33 @@ cd "$repo_root"
 app="build/PodTap.app"
 contents="$app/Contents"
 
-# Xcode trae XCTest y los SDKs completos; las Command Line Tools por sí solas
-# no bastan para compilar SwiftUI.
+# Xcode ships XCTest and the full SDKs; the Command Line Tools alone cannot
+# compile SwiftUI.
 if [[ -d /Applications/Xcode.app ]] && [[ "$(xcode-select -p)" != *Xcode* ]]; then
 	export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 fi
 
-echo "==> Compilando en release"
+echo "==> Building release binary"
 swift build -c release --product PodTap
 
-echo "==> Ensamblando $app"
+echo "==> Rendering app icon"
+./Scripts/make-icon.sh >/dev/null
+
+echo "==> Assembling $app"
 rm -rf "$app"
 mkdir -p "$contents/MacOS" "$contents/Resources"
 
 cp ".build/release/PodTap" "$contents/MacOS/PodTap"
+cp "build/AppIcon.icns" "$contents/Resources/AppIcon.icns"
 
 sed -e "s/__VERSION__/$VERSION/" -e "s/__BUILD__/$BUILD/" \
 	Resources/Info.plist >"$contents/Info.plist"
 
-# Firma ad-hoc. No sustituye a la notarización, pero sin ninguna firma macOS
-# rechaza conceder permisos de Accesibilidad de forma fiable.
-echo "==> Firmando (ad-hoc)"
+# Ad-hoc signature. No substitute for notarisation, but without any signature
+# macOS will not reliably grant Accessibility.
+echo "==> Signing (ad-hoc)"
 codesign --force --deep --sign - "$app"
 
 echo
-echo "Listo: $app"
-echo "Instalar con:  cp -R $app /Applications/"
+echo "Done: $app"
+echo "Install with:  cp -R $app /Applications/"

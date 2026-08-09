@@ -5,23 +5,23 @@ import GestureCore
 import HIDInput
 import KeyOutput
 
-/// Une la captura del botón, la clasificación del gesto y la síntesis de
-/// eventos, y expone a la interfaz el estado observable.
+/// Wires button capture, gesture classification and event synthesis together,
+/// and exposes observable state to the interface.
 @MainActor
 final class AppController: ObservableObject {
     @Published private(set) var isDeviceConnected = false
     @Published private(set) var isDictating = false
-    /// Mensaje de error legible, o `nil` si todo va bien.
+    /// Human-readable failure, or `nil` when everything is fine.
     @Published private(set) var failureMessage: String?
 
     let preferences: Preferences
 
     private let monitor = EarPodsButtonMonitor()
     private let emitter = KeyEmitter()
+    private let onboarding = OnboardingWindowController()
     private var classifier = GestureClassifier()
-    /// Disparo único programado al iniciar una pulsación: es lo que convierte
-    /// «sigue pulsado» en un evento, ya que el hardware no avisa al cruzar el
-    /// umbral.
+    /// One-shot timer armed when a press starts: it is what turns "still held"
+    /// into an event, since the hardware sends nothing at the threshold.
     private var holdTimer: Timer?
     private var cancellables = Set<AnyCancellable>()
 
@@ -40,8 +40,8 @@ final class AppController: ObservableObject {
             .sink { [weak self] threshold in self?.classifier.holdThreshold = threshold }
             .store(in: &cancellables)
 
-        // `dropFirst` evita actuar sobre el valor inicial: el arranque se hace
-        // una sola vez abajo, ya fuera de `init`.
+        // `dropFirst` avoids acting on the initial value: start-up happens once,
+        // below, outside `init`.
         preferences.$isEnabled
             .dropFirst()
             .sink { [weak self] enabled in enabled ? self?.start() : self?.stop() }
@@ -49,12 +49,28 @@ final class AppController: ObservableObject {
 
         AppDelegate.controller = self
 
-        // Diferido al siguiente ciclo del run loop: arrancar dentro de `init`
-        // significaría usar `self` antes de que termine de construirse.
-        Task { @MainActor [weak self] in self?.start() }
+        // Deferred to the next run loop pass: starting inside `init` would mean
+        // using `self` before it finishes being constructed.
+        Task { @MainActor [weak self] in self?.launch() }
     }
 
-    // MARK: - Ciclo de vida
+    // MARK: - Lifecycle
+
+    /// Entry point at app launch. New users get the setup flow; everyone else
+    /// goes straight to listening.
+    func launch() {
+        if preferences.hasCompletedSetup {
+            start()
+        } else {
+            showOnboarding()
+        }
+    }
+
+    func showOnboarding() {
+        onboarding.show(preferences: preferences) { [weak self] in
+            self?.start()
+        }
+    }
 
     func start() {
         guard preferences.isEnabled else { return }
@@ -72,14 +88,20 @@ final class AppController: ObservableObject {
         isDeviceConnected = false
     }
 
-    /// Devuelve el dispositivo al sistema y suelta cualquier tecla pendiente.
-    /// Debe llamarse antes de terminar el proceso: si no, el sistema podría
-    /// quedarse con la tecla bajada.
+    /// Opens the settings window even though the app has no menu of its own
+    /// when the menu bar icon is hidden.
+    func showSettings() {
+        NSApp.activate(ignoringOtherApps: true)
+        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+    }
+
+    /// Hands the device back and releases any held key. Must run before the
+    /// process exits, or the system could be left with the key down.
     func prepareForTermination() {
         stop()
     }
 
-    // MARK: - Eventos
+    // MARK: - Events
 
     private func handleButton(_ transition: ButtonTransition, at timestamp: TimeInterval) {
         let event = ButtonEvent(
@@ -97,8 +119,8 @@ final class AppController: ObservableObject {
 
     private func handleConnectionChange(_ connected: Bool) {
         isDeviceConnected = connected
-        // Desconectar con el botón pulsado dejaría la tecla bajada para
-        // siempre, y la app de dictado grabando sin fin.
+        // Unplugging mid-press would otherwise leave the key down forever, and
+        // the dictation app recording with no way to stop.
         if !connected { abortGesture() }
     }
 

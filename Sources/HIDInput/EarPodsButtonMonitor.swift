@@ -9,39 +9,38 @@ public enum HIDInputError: LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .inputMonitoringDenied:
-            return "PodTap necesita permiso de Monitorización de entrada para leer el botón del mando."
+            return "PodTap needs Input Monitoring permission to read the remote button."
         case .seizeFailed(let code):
-            return "No se pudo tomar el control del dispositivo (IOReturn 0x\(String(code, radix: 16)))."
+            return "Could not take control of the device (IOReturn 0x\(String(code, radix: 16)))."
         }
     }
 }
 
-/// Fase física del botón, replicada aquí para que `HIDInput` no dependa de
-/// `GestureCore`: la capa de entrada no debería saber nada de clasificación.
+/// Physical button phase, mirrored here so `HIDInput` does not depend on
+/// `GestureCore`: the input layer should know nothing about classification.
 public enum ButtonTransition: Sendable, Equatable {
     case pressed
     case released
 }
 
-/// Abre en exclusiva el mando de los EarPods USB-C y publica sus pulsaciones.
+/// Opens the USB-C EarPods remote exclusively and publishes its presses.
 ///
-/// Usa `kIOHIDOptionsTypeSeizeDevice`, lo que impide que macOS convierta la
-/// pulsación en un play/pause. Esa reemisión, cuando procede, es
-/// responsabilidad de la capa de salida.
+/// Uses `kIOHIDOptionsTypeSeizeDevice`, which stops macOS from turning the
+/// press into a play/pause. Re-emitting that, when appropriate, is the output
+/// layer's job.
 public final class EarPodsButtonMonitor {
-    /// EarPods USB-C de Apple.
+    /// Apple USB-C EarPods.
     private static let vendorID = 0x05AC
     private static let productID = 0x110B
-    /// HID Consumer Page y el usage concreto del botón.
+    /// HID Consumer Page and the button's specific usage.
     private static let consumerPage: UInt32 = 0x0C
     private static let consumerControlUsage = 0x01
     private static let playPauseUsage: UInt32 = 0x00CD
 
-    /// Se invoca en la cola principal por cada transición del botón, con una
-    /// marca temporal monótona en segundos.
+    /// Called on the main queue for every button transition, with a monotonic
+    /// timestamp in seconds.
     public var onButton: ((ButtonTransition, TimeInterval) -> Void)?
-    /// Se invoca en la cola principal cuando los EarPods se conectan o
-    /// desconectan.
+    /// Called on the main queue when the EarPods are plugged or unplugged.
     public var onConnectionChange: ((Bool) -> Void)?
 
     public private(set) var isConnected = false
@@ -54,14 +53,13 @@ public final class EarPodsButtonMonitor {
         stop()
     }
 
-    /// Comprueba el permiso sin solicitarlo, para poder pintar el estado en la
-    /// interfaz sin provocar diálogos del sistema.
+    /// Checks the permission without requesting it, so the interface can show
+    /// status without triggering system dialogs.
     public static var hasInputMonitoringAccess: Bool {
         IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeGranted
     }
 
-    /// Solicita el permiso, lo que hace aparecer el diálogo del sistema la
-    /// primera vez.
+    /// Requests the permission, which surfaces the system dialog the first time.
     @discardableResult
     public static func requestInputMonitoringAccess() -> Bool {
         IOHIDRequestAccess(kIOHIDRequestTypeListenEvent)
@@ -75,9 +73,9 @@ public final class EarPodsButtonMonitor {
 
         let manager = IOHIDManagerCreate(kCFAllocatorDefault, IOOptionBits(kIOHIDOptionsTypeNone))
 
-        // Matcheamos la interfaz Consumer concreta y no solo el vid/pid: los
-        // EarPods publican también una interfaz vendor-defined cuyo secuestro
-        // no aporta nada y cuyos efectos no están medidos.
+        // Match the specific Consumer interface rather than just vid/pid: the
+        // EarPods also publish a vendor-defined interface whose seizure adds
+        // nothing and whose side effects are unmeasured.
         IOHIDManagerSetDeviceMatching(
             manager,
             [
@@ -111,7 +109,7 @@ public final class EarPodsButtonMonitor {
         )
     }
 
-    /// Libera el dispositivo y lo devuelve al sistema. Idempotente.
+    /// Hands the device back to the system. Idempotent.
     public func stop() {
         guard let manager else { return }
         self.manager = nil
@@ -129,7 +127,7 @@ public final class EarPodsButtonMonitor {
         onConnectionChange?(connected)
     }
 
-    // MARK: - Puentes desde las callbacks de C
+    // MARK: - Bridges from the C callbacks
 
     private func receive(value: IOHIDValue) {
         let element = IOHIDValueGetElement(value)

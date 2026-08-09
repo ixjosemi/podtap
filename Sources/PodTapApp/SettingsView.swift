@@ -4,25 +4,25 @@ struct SettingsView: View {
     @EnvironmentObject private var controller: AppController
     @ObservedObject var preferences: Preferences
 
-    /// Los permisos no notifican cambios: el usuario los concede en Ajustes del
-    /// Sistema, fuera de la app. Se reconsultan periódicamente para que la
-    /// interfaz no se quede mintiendo.
+    /// Permissions send no change notifications: the user grants them in
+    /// System Settings, outside the app. They are re-read periodically so the
+    /// interface does not sit there lying.
     @State private var permissionRefresh = Date()
     private let permissionTimer = Timer.publish(every: 1.5, on: .main, in: .common).autoconnect()
 
     var body: some View {
         Form {
-            Section("Estado") {
+            Section("Status") {
                 LabeledContent("EarPods") {
                     StatusBadge(
                         isPositive: controller.isDeviceConnected,
-                        positive: "Conectados",
-                        negative: "No conectados"
+                        positive: "Connected",
+                        negative: "Not connected"
                     )
                 }
                 if controller.isDictating {
-                    LabeledContent("Dictado") {
-                        StatusBadge(isPositive: true, positive: "En curso", negative: "")
+                    LabeledContent("Dictation") {
+                        StatusBadge(isPositive: true, positive: "Running", negative: "")
                     }
                 }
                 if let failure = controller.failureMessage {
@@ -32,15 +32,15 @@ struct SettingsView: View {
                 }
             }
 
-            Section("Mapeo") {
-                Toggle("Activar PodTap", isOn: $preferences.isEnabled)
+            Section("Mapping") {
+                Toggle("Enable PodTap", isOn: $preferences.isEnabled)
 
-                LabeledContent("Tecla al mantener") {
+                LabeledContent("Key to hold") {
                     KeyRecorderView(combination: $preferences.outputCombination)
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
-                    LabeledContent("Umbral de mantenido") {
+                    LabeledContent("Hold threshold") {
                         Text("\(Int(preferences.holdThreshold * 1000)) ms")
                             .monospacedDigit()
                             .foregroundStyle(.secondary)
@@ -51,29 +51,40 @@ struct SettingsView: View {
                         step: 0.05
                     )
                     Text(
-                        "Por debajo del umbral, el botón hace play/pause como siempre. "
-                            + "Por encima, mantiene pulsada la tecla elegida."
+                        "Below the threshold the button still sends play/pause. Above it, "
+                            + "PodTap holds the key you chose."
                     )
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 }
             }
 
-            Section("Permisos") {
+            Section("Appearance") {
+                Toggle("Show icon in the menu bar", isOn: $preferences.showsMenuBarIcon)
+                Text(
+                    "With this off, PodTap keeps working in the background. Open the app "
+                        + "again from Finder to get back here."
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+
+            Section("Permissions") {
                 ForEach(SystemPermission.allCases) { permission in
                     PermissionRow(permission: permission, refreshToken: permissionRefresh)
                 }
             }
 
             Section {
-                LabeledContent("Versión", value: preferences.appVersion)
+                LabeledContent("Version", value: preferences.appVersion)
+                Button("Run setup again…") { controller.showOnboarding() }
                 Link(
-                    "Código fuente en GitHub",
+                    "Source code on GitHub",
                     destination: URL(string: "https://github.com/ixjosemi/podtap")!)
             }
         }
         .formStyle(.grouped)
-        .frame(width: 460)
+        .frame(width: 470)
         .fixedSize(horizontal: false, vertical: true)
         .onReceive(permissionTimer) { _ in permissionRefresh = Date() }
     }
@@ -95,7 +106,7 @@ private struct StatusBadge: View {
 
 private struct PermissionRow: View {
     let permission: SystemPermission
-    /// Solo existe para forzar el redibujado desde el temporizador.
+    /// Exists only to force a redraw from the timer.
     let refreshToken: Date
 
     var body: some View {
@@ -103,10 +114,10 @@ private struct PermissionRow: View {
 
         LabeledContent {
             if granted {
-                Label("Concedido", systemImage: "checkmark.circle.fill")
+                Label("Granted", systemImage: "checkmark.circle.fill")
                     .foregroundStyle(.green)
             } else {
-                Button("Conceder…") {
+                Button("Grant…") {
                     permission.request()
                     permission.openSystemSettings()
                 }

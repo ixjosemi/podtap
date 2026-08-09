@@ -3,32 +3,41 @@ import ApplicationServices
 import HIDInput
 import SwiftUI
 
-/// Los dos permisos que PodTap necesita, y por qué.
+/// The two permissions PodTap needs, and why.
 ///
-/// Se piden por separado y de forma explícita en la interfaz en lugar de
-/// dejar que macOS los saque por sorpresa: así el usuario entiende qué está
-/// concediendo y puede recuperarse si dijo que no.
+/// They are requested explicitly during setup rather than letting macOS spring
+/// them on the user mid-use, so it is clear what is being granted and how to
+/// recover from having said no.
 enum SystemPermission: CaseIterable, Identifiable {
-    /// Leer el botón del mando.
+    /// Reading the remote button.
     case inputMonitoring
-    /// Enviar la tecla configurada a otras apps.
+    /// Sending the configured key to other apps.
     case accessibility
 
     var id: Self { self }
 
     var title: String {
         switch self {
-        case .inputMonitoring: return "Monitorización de entrada"
-        case .accessibility: return "Accesibilidad"
+        case .inputMonitoring: return "Input Monitoring"
+        case .accessibility: return "Accessibility"
         }
     }
 
     var rationale: String {
         switch self {
         case .inputMonitoring:
-            return "Para leer el botón del mando de los EarPods."
+            return "Lets PodTap read the button on your EarPods remote."
         case .accessibility:
-            return "Para enviar la tecla configurada a la app en la que escribes."
+            return "Lets PodTap send the key you chose to whatever app you are typing in."
+        }
+    }
+
+    var systemSettingsHint: String {
+        switch self {
+        case .inputMonitoring:
+            return "Privacy & Security › Input Monitoring"
+        case .accessibility:
+            return "Privacy & Security › Accessibility"
         }
     }
 
@@ -39,8 +48,13 @@ enum SystemPermission: CaseIterable, Identifiable {
         }
     }
 
-    /// Provoca el diálogo del sistema. Solo aparece la primera vez; después
-    /// macOS exige ir a Ajustes, que es lo que hace `openSystemSettings`.
+    static var allGranted: Bool {
+        allCases.allSatisfy(\.isGranted)
+    }
+
+    /// Triggers the system dialog. It only appears the first time; afterwards
+    /// macOS requires a trip to System Settings, which `openSystemSettings`
+    /// handles.
     func request() {
         switch self {
         case .inputMonitoring:

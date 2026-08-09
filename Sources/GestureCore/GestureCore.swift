@@ -1,20 +1,20 @@
 import Foundation
 
-/// Fase física del botón del mando, tal y como la reporta el dispositivo HID.
+/// Physical phase of the remote button, as reported by the HID device.
 ///
-/// Los EarPods USB-C publican en la Consumer Page (0x0C) el usage `PlayPause`
-/// (0x00CD) con transiciones reales de valor 1/0. macOS colapsa ese par en un
-/// único toggle de reproducción en una capa superior; nosotros trabajamos por
-/// debajo y conservamos la duración de la pulsación.
+/// USB-C EarPods publish the `PlayPause` usage (`0x00CD`) on the Consumer Page
+/// (`0x0C`) with genuine 1/0 value transitions. macOS collapses that pair into
+/// a single playback toggle further up the stack; working below that layer
+/// keeps the press duration intact.
 public enum ButtonPhase: Sendable, Equatable {
     case pressed
     case released
 }
 
-/// Un evento de botón con su marca temporal monótona, en segundos.
+/// A button event with its monotonic timestamp, in seconds.
 ///
-/// El tiempo se inyecta en lugar de leerse de un reloj global para que la
-/// clasificación sea determinista y testeable sin hardware.
+/// Time is injected rather than read from a global clock so classification is
+/// deterministic and testable without hardware.
 public struct ButtonEvent: Sendable, Equatable {
     public let phase: ButtonPhase
     public let timestamp: TimeInterval
@@ -25,39 +25,39 @@ public struct ButtonEvent: Sendable, Equatable {
     }
 }
 
-/// Lo que la app debe provocar en el sistema. Deliberadamente abstracto: este
-/// módulo no sabe nada de `CGEvent` ni de qué tecla está configurada.
+/// What the app should make happen. Deliberately abstract: this module knows
+/// nothing about `CGEvent` or which key the user configured.
 public enum GestureIntent: Sendable, Equatable {
-    /// Reemitir play/pause al sistema. Necesario porque, al secuestrar el
-    /// dispositivo, el evento original ya no llega a nadie.
+    /// Re-emit play/pause to the system. Required because seizing the device
+    /// means the original event no longer reaches anyone.
     case emitPlayPause
-    /// Bajar la tecla configurada y mantenerla.
+    /// Press the configured key and hold it down.
     case beginDictation
-    /// Soltar la tecla configurada.
+    /// Release the configured key.
     case endDictation
 }
 
-/// Estado observable del clasificador. Público para que la UI pueda reflejarlo
-/// en la barra de menús y para poder afirmar sobre él en los tests.
+/// Observable state of the classifier. Public so the menu bar can reflect it
+/// and so tests can assert on it.
 public enum ClassifierState: Sendable, Equatable {
-    /// Botón arriba, nada en curso.
+    /// Button up, nothing in flight.
     case idle
-    /// Botón abajo desde `since`, aún sin cruzar el umbral de mantenido.
+    /// Button down since `since`, hold threshold not yet crossed.
     case pressing(since: TimeInterval)
-    /// Umbral cruzado: la tecla está bajada y el dictado en curso.
+    /// Threshold crossed: the key is held down and dictation is running.
     case dictating
 }
 
-/// Traduce pulsaciones físicas del botón en intenciones, aplicando la política
-/// «toque corto = play/pause, mantener = dictado».
+/// Translates physical button presses into intents, applying the policy
+/// "short tap means play/pause, press and hold means dictation".
 ///
-/// Es un `struct` sin dependencias externas: el mismo valor puede reproducirse
-/// en un test alimentándolo con una secuencia de eventos y ticks.
+/// A dependency-free `struct`: the same value can be replayed in a test by
+/// feeding it a sequence of events and ticks.
 public struct GestureClassifier: Sendable {
-    /// A partir de cuántos segundos una pulsación deja de ser un toque.
+    /// How many seconds a press must last before it stops being a tap.
     ///
-    /// Medido en el hardware real: los toques del usuario caen entre 79 y
-    /// 231 ms, y un mantenido deliberado se va por encima de 1700 ms.
+    /// Measured on real hardware: user taps land between 79 and 231 ms, while
+    /// a deliberate hold runs past 1700 ms.
     public var holdThreshold: TimeInterval
 
     public private(set) var state: ClassifierState
@@ -67,24 +67,25 @@ public struct GestureClassifier: Sendable {
         self.state = state
     }
 
-    /// Procesa una transición del botón y devuelve las intenciones resultantes.
+    /// Processes a button transition and returns the resulting intents.
     ///
-    /// La duración de la pulsación —y no el estado interno— es la fuente de
-    /// verdad al soltar. Si el tick que debía marcar el cruce del umbral nunca
-    /// llegó (proceso ocupado, reloj perezoso), una pulsación larga se seguiría
-    /// reconociendo como mantenido en vez de degradarse a un play/pause falso.
+    /// Press duration — not internal state — is the source of truth on release.
+    /// If the tick meant to mark the threshold crossing never arrived (busy
+    /// process, lazy clock), a long press is still recognised as a hold instead
+    /// of degrading into a spurious play/pause.
     public mutating func handle(_ event: ButtonEvent) -> [GestureIntent] {
         switch (state, event.phase) {
         case (.idle, .pressed):
             state = .pressing(since: event.timestamp)
             return []
 
-        // Pulsación repetida sin soltar: rebote del dispositivo. Reiniciar el
-        // cronómetro impediría que un mantenido llegase nunca a disparar.
+        // Repeated press without a release: device chatter. Restarting the
+        // timer would stop a hold from ever firing.
         case (.pressing, .pressed), (.dictating, .pressed):
             return []
 
-        // Soltar sin haber pulsado: la app pudo arrancar con el botón bajado.
+        // Release with no press on record: the app may have started while the
+        // button was already down.
         case (.idle, .released):
             return []
 
@@ -99,12 +100,12 @@ public struct GestureClassifier: Sendable {
         }
     }
 
-    /// Avance del reloj. El clasificador no puede detectar por sí solo que una
-    /// pulsación se ha convertido en mantenida —no llega ningún evento HID al
-    /// cruzar el umbral—, así que la capa de entrada le da pulsos periódicos.
+    /// Clock advance. The classifier cannot notice on its own that a press has
+    /// become a hold — no HID event arrives at the threshold — so the input
+    /// layer drives it.
     ///
-    /// Disparar aquí, y no al soltar, es lo que hace que el push-to-talk sea
-    /// real: el dictado arranca mientras sigues manteniendo el botón.
+    /// Firing here rather than on release is what makes push-to-talk real:
+    /// dictation starts while the button is still held.
     public mutating func tick(at now: TimeInterval) -> [GestureIntent] {
         guard case .pressing(let since) = state else { return [] }
         guard now - since >= holdThreshold else { return [] }
@@ -113,11 +114,11 @@ public struct GestureClassifier: Sendable {
         return [.beginDictation]
     }
 
-    /// Aborta cualquier gesto en curso sin producir efectos espurios.
+    /// Aborts any gesture in flight without producing spurious side effects.
     ///
-    /// Se invoca cuando los EarPods se desconectan o el sistema se suspende. Si
-    /// hay un dictado abierto hay que cerrarlo: si no, la tecla se queda bajada
-    /// para siempre y la app de dictado graba sin fin.
+    /// Called when the EarPods are unplugged or the system sleeps. An open
+    /// dictation must be closed: otherwise the key stays down forever and the
+    /// dictation app records without end.
     public mutating func interrupt() -> [GestureIntent] {
         defer { state = .idle }
         return state == .dictating ? [.endDictation] : []

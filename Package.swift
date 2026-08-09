@@ -1,10 +1,10 @@
 // swift-tools-version: 6.0
 import PackageDescription
 
-// Los módulos que hablan con IOKit, CoreGraphics y AppKit usan el modo de
-// lenguaje 5: las callbacks de C y las APIs de AppKit no están anotadas para la
-// concurrencia estricta de Swift 6, y forzarla ahí solo añadiría ruido.
-// `GestureCore`, que es puro, sí se compila en modo 6.
+// Modules that talk to IOKit, CoreGraphics and AppKit use Swift 5 language
+// mode: C callbacks and AppKit APIs are not annotated for Swift 6 strict
+// concurrency, and forcing it there would only add noise. `GestureCore`, which
+// is pure, does compile in Swift 6 mode.
 let legacyConcurrency: [SwiftSetting] = [.swiftLanguageMode(.v5)]
 
 let package = Package(
@@ -15,18 +15,18 @@ let package = Package(
         .library(name: "GestureCore", targets: ["GestureCore"]),
     ],
     targets: [
-        // Lógica pura de clasificación de gestos. Sin IOKit, sin CoreGraphics,
-        // sin reloj real: todo se inyecta, así que se testea sin hardware.
+        // Pure gesture classification. No IOKit, no CoreGraphics, no real clock:
+        // everything is injected, so it tests without hardware.
         .target(name: "GestureCore", path: "Sources/GestureCore"),
 
-        // Síntesis de eventos hacia el sistema.
+        // Event synthesis towards the system.
         .target(
             name: "KeyOutput",
             path: "Sources/KeyOutput",
             swiftSettings: legacyConcurrency
         ),
 
-        // Captura exclusiva del botón del mando.
+        // Exclusive capture of the remote button.
         .target(
             name: "HIDInput",
             path: "Sources/HIDInput",
