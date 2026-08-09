@@ -69,8 +69,30 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test
 - `Scripts/make-icon.sh` renders `Design/icon.svg` into `AppIcon.icns`. There is
   no SVG rasteriser in a stock macOS install, so it goes through `qlmanage`
   (WebKit) for the 1024px master, then `sips` and `iconutil`.
+- `Scripts/make-dmg-background.sh` renders `Design/dmg-background.svg` into a
+  multi-representation `dmg-background.tiff` (1x and 2x).
+- `Scripts/make-dmg-layout.sh` drives Finder over AppleScript to arrange the
+  installer window, then extracts the resulting `Design/dmg-DS_Store`.
 - `Scripts/build-app.sh` assembles the `.app` that SwiftPM cannot produce.
 - `Scripts/build-dmg.sh` produces the drag-to-install disk image.
+
+### Three committed artefacts, and why
+
+`Resources/AppIcon.icns`, `Design/dmg-background.tiff` and `Design/dmg-DS_Store`
+are all generated locally and committed, never built in CI. Each needs something
+a runner does not have: `qlmanage` needs a window server, and arranging the
+installer window needs Finder automation. Baking them on a real desktop keeps
+release builds fully headless and deterministic.
+
+Regenerate and commit whenever the corresponding SVG or window design changes.
+
+Two traps worth remembering:
+
+- The DMG **volume name must stay `PodTap`**, with no version. `.DS_Store`
+  records the background image by path inside the volume, so a versioned name
+  would break the layout on every release.
+- Finder's `bounds` includes the title bar. Asking for exactly the background
+  height crops the bottom of the image, so the layout script pads by 28 points.
 
 `Resources/AppIcon.icns` is a **committed artefact**, not a build output.
 Rendering it needs `qlmanage`, which needs a window server session that CI
