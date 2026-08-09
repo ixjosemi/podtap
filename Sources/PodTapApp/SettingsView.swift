@@ -102,6 +102,7 @@ struct SettingsView: View {
             SettingsToggle("Enable PodTap", isOn: $preferences.isEnabled)
             RowDivider()
             SettingsToggle("Show in menu bar", isOn: $preferences.showsMenuBarIcon)
+                .help("With this off, open PodTap again from Finder to get back here.")
             RowDivider()
             DisclosureRow("Setup guide") { controller.showOnboarding() }
         }
@@ -143,14 +144,28 @@ struct SettingsView: View {
 
     // MARK: - Footer
 
+    /// Quitting lives here, and it is not optional.
+    ///
+    /// PodTap sets `LSUIElement`: no Dock tile, no app menu, no ⌘Q from a menu
+    /// bar that is never drawn. Turn off **Show in menu bar** and the last way
+    /// out of the app disappears with it — the only remedy left is Activity
+    /// Monitor or `killall`, and `killall` is worse than it sounds here, because
+    /// SIGTERM skips `applicationWillTerminate` and can leave the configured key
+    /// held down system-wide. This window is the one surface that always exists,
+    /// so it carries the exit.
     private var footer: some View {
-        HStack {
+        HStack(spacing: 10) {
             Text(verbatim: "Version \(preferences.appVersion)")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .help("Build \(preferences.buildNumber)")
 
             Spacer()
+
+            Button("Quit PodTap") { NSApp.terminate(nil) }
+                .controlSize(.small)
+                .keyboardShortcut("q", modifiers: .command)
+                .help("Releases the key and hands the EarPods back first")
 
             Link(destination: URL(string: "https://github.com/ixjosemi/podtap")!) {
                 Artwork.githubMark

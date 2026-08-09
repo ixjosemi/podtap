@@ -168,10 +168,14 @@ PodTap never appears in the Dock or the app switcher. By default it sits in the
 menu bar, where the icon reflects state at a glance: ready, recording, or no
 EarPods connected.
 
-If you would rather not see it at all, turn off **Show icon in the menu bar** in
-Settings and it becomes a pure background agent. Opening PodTap again from
-Finder brings the settings window back, so hiding the icon is never a one-way
-door.
+If you would rather not see it at all, turn off **Show in menu bar** in Settings
+and it becomes a pure background agent. Opening PodTap again from Finder brings
+the settings window back, so hiding the icon is never a one-way door.
+
+Quitting is in that window too, next to the version. With no Dock tile and no
+menu bar of its own, PodTap would otherwise have no way out once the icon is
+hidden — and force-quitting is not a substitute here: it skips the shutdown that
+releases the key, which can leave it held down across the whole system.
 
 ## How it works
 

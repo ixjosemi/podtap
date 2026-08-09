@@ -172,6 +172,14 @@ so its output used as a template image paints a filled grey square. The
 committed file was rebuilt as a real mask, taking alpha from pixel darkness,
 which for a black-on-white glyph reproduces the coverage exactly.
 
+**The settings window must always offer Quit.** `LSUIElement` means no Dock
+tile, no application menu and no menu bar of PodTap's own, so with the menu bar
+icon hidden there is otherwise no way out of the app at all. Activity Monitor
+and `killall` are not a substitute: SIGTERM skips `applicationWillTerminate`,
+which is where the held key is released and the device handed back, so a
+force-quit can leave the configured key down system-wide with nothing left
+running to lift it. Do not remove that button in the name of minimalism.
+
 `AppStatus` in `GestureCore` is the single source for "what is PodTap doing" —
 the menu bar symbol and the settings pill both derive from it, so they cannot
 drift apart. It is pure, so the precedence between its states is tested.
