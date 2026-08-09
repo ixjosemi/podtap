@@ -14,6 +14,9 @@ struct PodTapApp: App {
         _controller = StateObject(wrappedValue: AppController(preferences: preferences))
     }
 
+    /// The menu bar is the only scene. Settings and setup are AppKit windows
+    /// owned by the controller, because SwiftUI's `Settings` scene silently
+    /// does nothing in an accessory app.
     var body: some Scene {
         // `isInserted` lets the icon be removed entirely without tearing down
         // the app, so PodTap can run as a pure background agent.
@@ -22,11 +25,6 @@ struct PodTapApp: App {
                 .environmentObject(controller)
         } label: {
             Image(systemName: menuBarSymbol)
-        }
-
-        Settings {
-            SettingsView(preferences: preferences)
-                .environmentObject(controller)
         }
     }
 
@@ -67,10 +65,8 @@ private struct MenuContent: View {
 
         Toggle("Enable PodTap", isOn: $preferences.isEnabled)
 
-        SettingsLink {
-            Text("Settings…")
-        }
-        .keyboardShortcut(",", modifiers: .command)
+        Button("Settings…") { controller.showSettings() }
+            .keyboardShortcut(",", modifiers: .command)
 
         Divider()
 
@@ -87,8 +83,9 @@ private struct MenuContent: View {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     @MainActor static weak var controller: AppController?
 
-    /// Launching PodTap again while it is already running is the only route
-    /// back into the app when the menu bar icon is hidden.
+    /// Relaunching PodTap while it is already running is the only route back
+    /// into the app when the menu bar icon is hidden. Spotlight, Raycast and
+    /// the Finder all arrive here.
     func applicationShouldHandleReopen(
         _ sender: NSApplication, hasVisibleWindows: Bool
     ) -> Bool {

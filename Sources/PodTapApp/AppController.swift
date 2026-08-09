@@ -18,7 +18,8 @@ final class AppController: ObservableObject {
 
     private let monitor = EarPodsButtonMonitor()
     private let emitter = KeyEmitter()
-    private let onboarding = OnboardingWindowController()
+    private let onboardingWindow = HostedWindowController()
+    private let settingsWindow = HostedWindowController()
     private var classifier = GestureClassifier()
     /// One-shot timer armed when a press starts: it is what turns "still held"
     /// into an event, since the hardware sends nothing at the threshold.
@@ -71,8 +72,11 @@ final class AppController: ObservableObject {
     }
 
     func showOnboarding() {
-        onboarding.show(preferences: preferences) { [weak self] in
-            self?.start()
+        onboardingWindow.show(title: "PodTap Setup") {
+            OnboardingView(preferences: preferences) { [weak self] in
+                self?.onboardingWindow.close()
+                self?.start()
+            }
         }
     }
 
@@ -92,11 +96,13 @@ final class AppController: ObservableObject {
         isDeviceConnected = false
     }
 
-    /// Opens the settings window even though the app has no menu of its own
-    /// when the menu bar icon is hidden.
+    /// Opens settings. Reachable from the menu bar, and — crucially — from
+    /// relaunching the app, which is the only way back in when the menu bar
+    /// icon is hidden.
     func showSettings() {
-        NSApp.activate(ignoringOtherApps: true)
-        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+        settingsWindow.show(title: "PodTap Settings") {
+            SettingsView(preferences: preferences).environmentObject(self)
+        }
     }
 
     /// Hands the device back and releases any held key. Must run before the

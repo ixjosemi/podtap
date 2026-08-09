@@ -64,6 +64,23 @@ Caps Lock is excluded on purpose: it latches, so it cannot be held.
 - **Permissions are front-loaded into a setup window**, not buried in settings.
   Without them the app silently does nothing, which is the worst failure mode.
 
+## Windows
+
+**Do not use SwiftUI's `Settings` scene.** In an accessory app it silently does
+nothing: `NSApp.sendAction(Selector(("showSettingsWindow:")))` returns `true`
+and no window is ever created. Reporting success while doing nothing is worse
+than failing, and it cost a debugging session.
+
+Both settings and setup go through `HostedWindowController`, which owns a real
+`NSWindow` wrapping an `NSHostingView`. An accessory app is also outside the
+activation chain, so showing a window requires `NSApp.activate` as well as
+`makeKeyAndOrderFront` — otherwise it appears behind whatever the user is doing.
+
+`applicationShouldHandleReopen` is the only route back into the app when the
+menu bar icon is hidden. Spotlight, Raycast and Finder all arrive there. It was
+verified to fire correctly; the bug was purely that the window it asked for was
+never created.
+
 ## Conventions
 
 - Everything user-facing and every source comment is in **English**.
