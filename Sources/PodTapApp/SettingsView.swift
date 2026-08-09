@@ -52,7 +52,7 @@ struct SettingsView: View {
                     )
                     Text(
                         "Below the threshold the button still sends play/pause. Above it, "
-                            + "PodTap holds the key you chose."
+                            + "PodTap latches the key down until you tap the button again."
                     )
                     .font(.caption)
                     .foregroundStyle(.secondary)

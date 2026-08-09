@@ -29,7 +29,7 @@ struct KeyRecorderView: View {
             .buttonStyle(.bordered)
             .tint(recorder.isRecording ? .accentColor : nil)
             .help(
-                "Click, then press the key or modifiers PodTap should hold. "
+                "Click, then press the key or modifiers PodTap should latch down. "
                     + "Escape cancels."
             )
 

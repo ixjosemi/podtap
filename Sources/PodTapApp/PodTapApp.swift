@@ -58,7 +58,11 @@ private struct MenuContent: View {
         Text(controller.isDeviceConnected ? "EarPods connected" : "EarPods not connected")
 
         if controller.isDeviceConnected && preferences.isEnabled {
-            Text("Hold the button for \(preferences.outputCombination.displayName)")
+            Text(
+                controller.isDictating
+                    ? "Dictating — tap the button to stop"
+                    : "Hold the button to send \(preferences.outputCombination.displayName)"
+            )
         }
 
         Divider()

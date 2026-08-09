@@ -44,7 +44,12 @@ final class ShortTapTests: XCTestCase {
     }
 }
 
-final class HoldTests: XCTestCase {
+/// The latch is not a preference, it is what the hardware allows. USB-C EarPods
+/// mute their microphone for as long as the remote button is held: measured over
+/// two seconds of continuous speech, 88 200 consecutive samples of digital
+/// silence, every one exactly zero. Dictation therefore has to happen with the
+/// button *free*, so the key stays down on its own until a closing tap.
+final class LatchTests: XCTestCase {
     func testCrossingThresholdBeginsDictationWithoutWaitingForRelease() {
         var classifier = GestureClassifier(holdThreshold: threshold)
 
@@ -54,13 +59,62 @@ final class HoldTests: XCTestCase {
         XCTAssertEqual(classifier.state, .dictating)
     }
 
-    func testReleaseAfterHoldEndsDictationAndDoesNotEmitPlayPause() {
+    func testReleasingTheButtonLeavesTheKeyLatched() {
         var classifier = GestureClassifier(holdThreshold: threshold)
 
         _ = classifier.handle(down(0))
         _ = classifier.tick(at: 0.3)
-        XCTAssertEqual(classifier.handle(up(1.947)), [.endDictation])
+
+        // Letting go is what un-mutes the microphone, so it must not end
+        // anything.
+        XCTAssertEqual(classifier.handle(up(0.5)), [])
+        XCTAssertEqual(classifier.state, .dictating)
+    }
+
+    func testTheNextPressEndsDictation() {
+        var classifier = GestureClassifier(holdThreshold: threshold)
+
+        _ = classifier.handle(down(0))
+        _ = classifier.tick(at: 0.3)
+        _ = classifier.handle(up(0.5))
+
+        XCTAssertEqual(classifier.handle(down(6.0)), [.endDictation])
+    }
+
+    func testTheClosingTapDoesNotAlsoEmitPlayPause() {
+        var classifier = GestureClassifier(holdThreshold: threshold)
+
+        _ = classifier.handle(down(0))
+        _ = classifier.tick(at: 0.3)
+        _ = classifier.handle(up(0.5))
+        _ = classifier.handle(down(6.0))
+
+        // Short enough to look exactly like a tap, and it must not be one.
+        XCTAssertEqual(classifier.handle(up(6.1)), [])
         XCTAssertEqual(classifier.state, .idle)
+    }
+
+    func testATapAfterClosingIsAnOrdinaryPlayPauseAgain() {
+        var classifier = GestureClassifier(holdThreshold: threshold)
+
+        _ = classifier.handle(down(0))
+        _ = classifier.tick(at: 0.3)
+        _ = classifier.handle(up(0.5))
+        _ = classifier.handle(down(6.0))
+        _ = classifier.handle(up(6.1))
+
+        _ = classifier.handle(down(8.0))
+        XCTAssertEqual(classifier.handle(up(8.1)), [.emitPlayPause])
+    }
+
+    func testHoldingThroughTheWholeGestureStillLatches() {
+        var classifier = GestureClassifier(holdThreshold: threshold)
+
+        // A long hold with no tick in between: the duration alone must be
+        // enough to arm the latch, or the gesture silently does nothing.
+        _ = classifier.handle(down(0))
+        XCTAssertEqual(classifier.handle(up(1.8)), [.beginDictation])
+        XCTAssertEqual(classifier.state, .dictating)
     }
 
     func testRepeatedTicksDoNotRestartDictation() {
@@ -70,6 +124,20 @@ final class HoldTests: XCTestCase {
         XCTAssertEqual(classifier.tick(at: 0.3), [.beginDictation])
         XCTAssertEqual(classifier.tick(at: 0.5), [])
         XCTAssertEqual(classifier.tick(at: 1.2), [])
+    }
+
+    func testTickWhileClosingIsInert() {
+        var classifier = GestureClassifier(holdThreshold: threshold)
+
+        _ = classifier.handle(down(0))
+        _ = classifier.tick(at: 0.3)
+        _ = classifier.handle(up(0.5))
+        _ = classifier.handle(down(6.0))
+
+        // Holding the closing press past the threshold must not open a second
+        // dictation on the way out.
+        XCTAssertEqual(classifier.tick(at: 6.5), [])
+        XCTAssertEqual(classifier.state, .closing)
     }
 
     func testTickWhileIdleIsInert() {
@@ -106,6 +174,17 @@ final class DegenerateInputTests: XCTestCase {
         // plainly this was a hold; re-emitting play/pause would be wrong.
         XCTAssertNotEqual(classifier.handle(up(1.8)), [.emitPlayPause])
     }
+
+    func testChatterWhileLatchedDoesNotCloseTwice() {
+        var classifier = GestureClassifier(holdThreshold: threshold)
+
+        _ = classifier.handle(down(0))
+        _ = classifier.tick(at: 0.3)
+        _ = classifier.handle(up(0.5))
+
+        XCTAssertEqual(classifier.handle(down(6.0)), [.endDictation])
+        XCTAssertEqual(classifier.handle(down(6.02)), [])
+    }
 }
 
 final class InterruptTests: XCTestCase {
@@ -115,6 +194,33 @@ final class InterruptTests: XCTestCase {
         _ = classifier.handle(down(0))
         _ = classifier.tick(at: 0.3)
         XCTAssertEqual(classifier.interrupt(), [.endDictation])
+        XCTAssertEqual(classifier.state, .idle)
+    }
+
+    /// The latch outlives the button, so unplugging mid-dictation is the case
+    /// that would otherwise leave a key held down with nothing able to lift it.
+    func testInterruptAfterTheButtonIsReleasedStillReleasesTheKey() {
+        var classifier = GestureClassifier(holdThreshold: threshold)
+
+        _ = classifier.handle(down(0))
+        _ = classifier.tick(at: 0.3)
+        _ = classifier.handle(up(0.5))
+
+        XCTAssertEqual(classifier.interrupt(), [.endDictation])
+        XCTAssertEqual(classifier.state, .idle)
+    }
+
+    func testInterruptWhileClosingEmitsNothing() {
+        var classifier = GestureClassifier(holdThreshold: threshold)
+
+        _ = classifier.handle(down(0))
+        _ = classifier.tick(at: 0.3)
+        _ = classifier.handle(up(0.5))
+        _ = classifier.handle(down(6.0))
+
+        // The key came up with the closing press; releasing it twice would
+        // leave the dictation app with an unmatched key-up.
+        XCTAssertEqual(classifier.interrupt(), [])
         XCTAssertEqual(classifier.state, .idle)
     }
 

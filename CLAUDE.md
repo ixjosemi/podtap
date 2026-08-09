@@ -21,6 +21,31 @@ Do not re-investigate these. Measured on real USB-C EarPods, macOS 26.5:
 - `kIOHIDOptionsTypeSeizeDevice` is granted and **genuinely blocks**: with music
   playing, 17 presses produced no pause.
 
+### Holding the button mutes the microphone
+
+The single most important fact about this hardware, and it kills push-to-talk
+outright. Recorded from `EarPods Microphone` while speaking continuously for
+nine seconds, holding the button only for the middle three:
+
+```
+0.75 – 2.75 s   button free     −25 dB
+3.75 – 6.00 s   BUTTON HELD     −99 dB   88 200 samples, every one exactly 0
+6.25 – 8.00 s   button free     −17 dB
+```
+
+Not attenuation — digital silence, maximum absolute sample value 0, against
+66 137 of 66 150 non-zero samples either side. The remote is read through the
+microphone line, the same resistor-ladder trick the analogue EarPods use, so
+while a button is down that line is not carrying audio.
+
+Nothing in software can change this. It is not the HID seize either: the
+recording above was taken by an unrelated process.
+
+The consequence is the whole interaction model. Dictation must happen with the
+button **free**, so `GestureClassifier` latches the key down and lifts it on a
+later tap, rather than tracking the button. The dictation app still sees one
+long key press and needs no toggle mode.
+
 ## Shortcut model
 
 A `KeyCombination` is **modifiers plus an optional key**, not a key plus
@@ -82,10 +107,12 @@ Caps Lock is excluded on purpose: it latches, so it cannot be held.
 
 ## Design decisions
 
-- **Short tap re-emits play/pause, hold sends the configured key.** Play/pause
-  is decided on release, so it is delayed only by the length of the tap itself.
-- **Dictation starts when the threshold is crossed, not on release.** That is
-  what makes it real push-to-talk.
+- **Short tap re-emits play/pause, a hold latches the configured key.**
+  Play/pause is decided on release, so it is delayed only by the length of the
+  tap itself. A closing press never produces one.
+- **Dictation starts when the threshold is crossed, not on release**, so the
+  gesture visibly takes while the button is still down. It then survives the
+  release, because that release is what un-mutes the microphone.
 - **The output key is configurable from v1.** The app assumes nothing about
   Wispr Flow or any other specific app.
 - **Wired EarPods only.** AirPods arrive over Bluetooth AVRCP, expose no HID

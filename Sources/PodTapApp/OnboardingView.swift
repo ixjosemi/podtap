@@ -69,10 +69,18 @@ struct OnboardingView: View {
                 )
                 GestureRow(
                     symbol: "waveform",
-                    title: "Press and hold",
-                    detail: "Holds the key you choose, then releases it."
+                    title: "Press and hold, then let go",
+                    detail: "Holds your key down. Talk, then tap once to stop."
                 )
             }
+
+            Text(
+                "The EarPods mute their microphone while the button is held, so "
+                    + "PodTap keeps the key down for you and leaves the button free."
+            )
+            .font(.caption)
+            .foregroundStyle(.tertiary)
+            .multilineTextAlignment(.center)
             .padding(.top, 6)
 
             Spacer()
@@ -111,7 +119,7 @@ struct OnboardingView: View {
         VStack(alignment: .leading, spacing: 18) {
             StepHeader(
                 title: "Choose your key",
-                subtitle: "PodTap holds this key down while you hold the remote button."
+                subtitle: "PodTap latches this key down until you tap the button again."
             )
 
             HStack(spacing: 16) {
@@ -184,7 +192,8 @@ struct OnboardingView: View {
     /// localised key with interpolation.
     private var summary: String {
         let key = preferences.outputCombination.displayName
-        return "Hold the remote button to send \(key). Tap it for play/pause."
+        return "Hold the button to send \(key), talk, then tap to stop. "
+            + "A short tap is still play/pause."
     }
 
     // MARK: - Footer

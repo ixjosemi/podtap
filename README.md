@@ -15,12 +15,20 @@
 want — while keeping play/pause exactly where it was.**
 
 - **Short tap** → play/pause, unchanged.
-- **Press and hold** → holds down the key you chose, and releases it when you
-  let go.
+- **Press and hold, then let go** → PodTap latches your key down. Talk with the
+  button free, then **tap once** to lift it.
 
-The button becomes a proper push-to-talk trigger. Hold it, talk, let go. It
-works with Wispr Flow, Superwhisper, macOS Dictation, Discord, Slack huddles, or
-anything else driven by a held key.
+It works with Wispr Flow, Superwhisper, macOS Dictation, Discord, Slack huddles,
+or anything else driven by a held key — no toggle mode required, because as far
+as those apps are concerned the key really is held down the whole time.
+
+> **Why latch instead of hold?** Because the EarPods will not let you hold.
+> The remote button is read through the microphone line, so pressing it mutes
+> the microphone — measured over two seconds of continuous speech with the
+> button down, 88 200 consecutive samples of digital silence, every one exactly
+> zero. Push-to-talk on this hardware would kill the microphone for precisely
+> as long as you meant to be recording. PodTap holds the key so your thumb
+> does not have to.
 
 Everything is configured in the app. There is no config file, no scripting, and
 nothing to compile.
